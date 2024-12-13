@@ -10,6 +10,132 @@ import {
 import { TodoistApi } from "@doist/todoist-api-typescript";
 
 // Define tools
+const GET_PROJECTS_TOOL: Tool = {
+  name: "todoist_get_projects",
+  description: "Get all projects from Todoist",
+  inputSchema: {
+    type: "object",
+    properties: {}
+  }
+};
+
+const CREATE_PROJECT_TOOL: Tool = {
+  name: "todoist_create_project",
+  description: "Create a new project in Todoist",
+  inputSchema: {
+    type: "object",
+    properties: {
+      name: {
+        type: "string",
+        description: "Name of the project"
+      },
+      parent_id: {
+        type: "string",
+        description: "Parent project ID for nested projects (optional)"
+      },
+      color: {
+        type: "string",
+        description: "Color of the project (optional)",
+        enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+      },
+      favorite: {
+        type: "boolean",
+        description: "Whether the project is a favorite (optional)"
+      }
+    },
+    required: ["name"]
+  }
+};
+
+const UPDATE_PROJECT_TOOL: Tool = {
+  name: "todoist_update_project",
+  description: "Update an existing project in Todoist",
+  inputSchema: {
+    type: "object",
+    properties: {
+      project_id: {
+        type: "string",
+        description: "ID of the project to update"
+      },
+      name: {
+        type: "string",
+        description: "New name for the project (optional)"
+      },
+      color: {
+        type: "string",
+        description: "New color for the project (optional)",
+        enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+      },
+      favorite: {
+        type: "boolean",
+        description: "Whether the project should be a favorite (optional)"
+      }
+    },
+    required: ["project_id"]
+  }
+};
+
+const GET_PROJECT_SECTIONS_TOOL: Tool = {
+  name: "todoist_get_project_sections",
+  description: "Get all sections in a Todoist project",
+  inputSchema: {
+    type: "object",
+    properties: {
+      project_id: {
+        type: "string",
+        description: "ID of the project"
+      }
+    },
+    required: ["project_id"]
+  }
+};
+
+const CREATE_SECTION_TOOL: Tool = {
+  name: "todoist_create_section",
+  description: "Create a new section in a Todoist project",
+  inputSchema: {
+    type: "object",
+    properties: {
+      project_id: {
+        type: "string",
+        description: "ID of the project"
+      },
+      name: {
+        type: "string",
+        description: "Name of the section"
+      },
+      order: {
+        type: "number",
+        description: "Order of the section (optional)"
+      }
+    },
+    required: ["project_id", "name"]
+  }
+};
+
+const MOVE_TASK_TOOL: Tool = {
+  name: "todoist_move_task",
+  description: "Move a task to a different section and/or project",
+  inputSchema: {
+    type: "object",
+    properties: {
+      task_name: {
+        type: "string",
+        description: "Name/content of the task to move"
+      },
+      project_id: {
+        type: "string",
+        description: "ID of the project to move the task to (optional)"
+      },
+      section_id: {
+        type: "string",
+        description: "ID of the section to move the task to (optional)"
+      }
+    },
+    required: ["task_name"]
+  }
+};
+
 const CREATE_TASK_TOOL: Tool = {
   name: "todoist_create_task",
   description: "Create a new task in Todoist with optional description, due date, and priority",
@@ -32,6 +158,14 @@ const CREATE_TASK_TOOL: Tool = {
         type: "number",
         description: "Task priority from 1 (normal) to 4 (urgent) (optional)",
         enum: [1, 2, 3, 4]
+      },
+      project_id: {
+        type: "string",
+        description: "ID of the project to add the task to (optional)"
+      },
+      section_id: {
+        type: "string",
+        description: "ID of the section to add the task to (optional)"
       }
     },
     required: ["content"]
@@ -47,6 +181,10 @@ const GET_TASKS_TOOL: Tool = {
       project_id: {
         type: "string",
         description: "Filter tasks by project ID (optional)"
+      },
+      section_id: {
+        type: "string",
+        description: "Filter tasks by section ID (optional)"
       },
       filter: {
         type: "string",
@@ -92,6 +230,14 @@ const UPDATE_TASK_TOOL: Tool = {
         type: "number",
         description: "New priority level from 1 (normal) to 4 (urgent) (optional)",
         enum: [1, 2, 3, 4]
+      },
+      project_id: {
+        type: "string",
+        description: "Move task to this project ID (optional)"
+      },
+      section_id: {
+        type: "string",
+        description: "Move task to this section ID (optional)"
       }
     },
     required: ["task_name"]
@@ -157,6 +303,8 @@ function isCreateTaskArgs(args: unknown): args is {
   description?: string;
   due_string?: string;
   priority?: number;
+  project_id?: string;
+  section_id?: string;
 } {
   return (
     typeof args === "object" &&
@@ -168,6 +316,7 @@ function isCreateTaskArgs(args: unknown): args is {
 
 function isGetTasksArgs(args: unknown): args is { 
   project_id?: string;
+  section_id?: string;
   filter?: string;
   priority?: number;
   limit?: number;
@@ -184,6 +333,8 @@ function isUpdateTaskArgs(args: unknown): args is {
   description?: string;
   due_string?: string;
   priority?: number;
+  project_id?: string;
+  section_id?: string;
 } {
   return (
     typeof args === "object" &&
@@ -215,9 +366,92 @@ function isCompleteTaskArgs(args: unknown): args is {
   );
 }
 
+function isGetProjectsArgs(args: unknown): args is {} {
+  return typeof args === "object" && args !== null;
+}
+
+function isCreateProjectArgs(args: unknown): args is {
+  name: string;
+  parent_id?: string;
+  color?: string;
+  favorite?: boolean;
+} {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    "name" in args &&
+    typeof (args as { name: string }).name === "string"
+  );
+}
+
+function isUpdateProjectArgs(args: unknown): args is {
+  project_id: string;
+  name?: string;
+  color?: string;
+  favorite?: boolean;
+} {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    "project_id" in args &&
+    typeof (args as { project_id: string }).project_id === "string"
+  );
+}
+
+function isGetProjectSectionsArgs(args: unknown): args is {
+  project_id: string;
+} {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    "project_id" in args &&
+    typeof (args as { project_id: string }).project_id === "string"
+  );
+}
+
+function isCreateSectionArgs(args: unknown): args is {
+  project_id: string;
+  name: string;
+  order?: number;
+} {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    "project_id" in args &&
+    "name" in args &&
+    typeof (args as { project_id: string; name: string }).project_id === "string" &&
+    typeof (args as { project_id: string; name: string }).name === "string"
+  );
+}
+
+function isMoveTaskArgs(args: unknown): args is {
+  task_name: string;
+  project_id?: string;
+  section_id?: string;
+} {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    "task_name" in args &&
+    typeof (args as { task_name: string }).task_name === "string"
+  );
+}
+
 // Tool handlers
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: [CREATE_TASK_TOOL, GET_TASKS_TOOL, UPDATE_TASK_TOOL, DELETE_TASK_TOOL, COMPLETE_TASK_TOOL],
+  tools: [
+    CREATE_TASK_TOOL,
+    GET_TASKS_TOOL,
+    UPDATE_TASK_TOOL,
+    DELETE_TASK_TOOL,
+    COMPLETE_TASK_TOOL,
+    GET_PROJECTS_TOOL,
+    CREATE_PROJECT_TOOL,
+    UPDATE_PROJECT_TOOL,
+    GET_PROJECT_SECTIONS_TOOL,
+    CREATE_SECTION_TOOL,
+    MOVE_TASK_TOOL
+  ],
 }));
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -228,6 +462,126 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       throw new Error("No arguments provided");
     }
 
+    if (name === "todoist_get_projects") {
+      if (!isGetProjectsArgs(args)) {
+        throw new Error("Invalid arguments for todoist_get_projects");
+      }
+      const projects = await todoistClient.getProjects();
+      return {
+        content: [{ 
+          type: "text", 
+          text: JSON.stringify(projects, null, 2)
+        }],
+        isError: false,
+      };
+    }
+
+    if (name === "todoist_create_project") {
+      if (!isCreateProjectArgs(args)) {
+        throw new Error("Invalid arguments for todoist_create_project");
+      }
+      const project = await todoistClient.addProject({
+        name: args.name,
+        parentId: args.parent_id,
+        color: args.color,
+        isFavorite: args.favorite
+      });
+      return {
+        content: [{ 
+          type: "text", 
+          text: `Project created:\n${JSON.stringify(project, null, 2)}`
+        }],
+        isError: false,
+      };
+    }
+
+    if (name === "todoist_update_project") {
+      if (!isUpdateProjectArgs(args)) {
+        throw new Error("Invalid arguments for todoist_update_project");
+      }
+      const project = await todoistClient.updateProject(args.project_id, {
+        name: args.name,
+        color: args.color,
+        isFavorite: args.favorite
+      });
+      return {
+        content: [{ 
+          type: "text", 
+          text: `Project updated:\n${JSON.stringify(project, null, 2)}`
+        }],
+        isError: false,
+      };
+    }
+
+    if (name === "todoist_get_project_sections") {
+      if (!isGetProjectSectionsArgs(args)) {
+        throw new Error("Invalid arguments for todoist_get_project_sections");
+      }
+      const sections = await todoistClient.getSections(args.project_id);
+      return {
+        content: [{ 
+          type: "text", 
+          text: JSON.stringify(sections, null, 2)
+        }],
+        isError: false,
+      };
+    }
+
+    if (name === "todoist_create_section") {
+      if (!isCreateSectionArgs(args)) {
+        throw new Error("Invalid arguments for todoist_create_section");
+      }
+      const section = await todoistClient.addSection({
+        projectId: args.project_id,
+        name: args.name,
+        order: args.order
+      });
+      return {
+        content: [{ 
+          type: "text", 
+          text: `Section created:\n${JSON.stringify(section, null, 2)}`
+        }],
+        isError: false,
+      };
+    }
+
+    if (name === "todoist_move_task") {
+      if (!isMoveTaskArgs(args)) {
+        throw new Error("Invalid arguments for todoist_move_task");
+      }
+
+      // First, search for the task
+      const tasks = await todoistClient.getTasks();
+      const matchingTask = tasks.find(task => 
+        task.content.toLowerCase().includes(args.task_name.toLowerCase())
+      );
+
+      if (!matchingTask) {
+        return {
+          content: [{ 
+            type: "text", 
+            text: `Could not find a task matching "${args.task_name}"` 
+          }],
+          isError: true,
+        };
+      }
+
+      // Build update data
+      const updateData: any = {};
+      if (args.project_id) updateData.projectId = args.project_id;
+      if (args.section_id) updateData.sectionId = args.section_id;
+
+      const updatedTask = await todoistClient.updateTask(matchingTask.id, updateData);
+      
+      return {
+        content: [{ 
+          type: "text", 
+          text: `Task "${matchingTask.content}" moved successfully:\n${JSON.stringify(updatedTask, null, 2)}` 
+        }],
+        isError: false,
+      };
+    }
+
     if (name === "todoist_create_task") {
       if (!isCreateTaskArgs(args)) {
         throw new Error("Invalid arguments for todoist_create_task");
@@ -236,12 +590,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: args.content,
         description: args.description,
         dueString: args.due_string,
-        priority: args.priority
+        priority: args.priority,
+        projectId: args.project_id,
+        sectionId: args.section_id
       });
       return {
         content: [{ 
           type: "text", 
-          text: `Task created:\nTitle: ${task.content}${task.description ? `\nDescription: ${task.description}` : ''}${task.due ? `\nDue: ${task.due.string}` : ''}${task.priority ? `\nPriority: ${task.priority}` : ''}` 
+          text: `Task created:\nTitle: ${task.content}${task.description ? `\nDescription: ${task.description}` : ''}${task.due ? `\nDue: ${task.due.string}` : ''}${task.priority ? `\nPriority: ${task.priority}` : ''}${task.projectId ? `\nProject ID: ${task.projectId}` : ''}${task.sectionId ? `\nSection ID: ${task.sectionId}` : ''}` 
         }],
         isError: false,
       };
@@ -254,6 +610,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       
       const tasks = await todoistClient.getTasks({
         projectId: args.project_id,
+        sectionId: args.section_id,
         filter: args.filter
       });
 
@@ -269,7 +626,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       
       const taskList = filteredTasks.map(task => 
-        `- ${task.content}${task.description ? `\n  Description: ${task.description}` : ''}${task.due ? `\n  Due: ${task.due.string}` : ''}${task.priority ? `\n  Priority: ${task.priority}` : ''}`
+        `- ${task.content}${task.description ? `\n  Description: ${task.description}` : ''}${task.due ? `\n  Due: ${task.due.string}` : ''}${task.priority ? `\n  Priority: ${task.priority}` : ''}${task.projectId ? `\n  Project ID: ${task.projectId}` : ''}${task.sectionId ? `\n  Section ID: ${task.sectionId}` : ''}`
       ).join('\n\n');
       
       return {
@@ -308,13 +665,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (args.description) updateData.description = args.description;
       if (args.due_string) updateData.dueString = args.due_string;
       if (args.priority) updateData.priority = args.priority;
+      if (args.project_id) updateData.projectId = args.project_id;
+      if (args.section_id) updateData.sectionId = args.section_id;
 
       const updatedTask = await todoistClient.updateTask(matchingTask.id, updateData);
       
       return {
         content: [{ 
           type: "text", 
-          text: `Task "${matchingTask.content}" updated:\nNew Title: ${updatedTask.content}${updatedTask.description ? `\nNew Description: ${updatedTask.description}` : ''}${updatedTask.due ? `\nNew Due Date: ${updatedTask.due.string}` : ''}${updatedTask.priority ? `\nNew Priority: ${updatedTask.priority}` : ''}` 
+          text: `Task "${matchingTask.content}" updated:\n${JSON.stringify(updatedTask, null, 2)}` 
         }],
         isError: false,
       };
