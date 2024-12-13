@@ -15,7 +15,7 @@ An MCP (Model Context Protocol) server implementation that integrates Claude wit
 ## Installation
 
 ```bash
-npm install -g todoist-mcp-server
+npm install -g todoist-mcp-enhanced-server
 ```
 
 ## Tools
@@ -108,7 +108,7 @@ Add to your Cline MCP settings file:
   "mcpServers": {
     "todoist": {
       "command": "npx",
-      "args": ["todoist-mcp-server"],
+      "args": ["todoist-mcp-enhanced-server"],
       "env": {
         "TODOIST_API_TOKEN": "your_api_token_here"
       }
