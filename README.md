@@ -13,7 +13,7 @@ An MCP (Model Context Protocol) server implementation that integrates Claude wit
 ## Installation
 
 ```bash
-npm install -g @abhiz123/todoist-mcp-server
+npm install -g todoist-mcp-server
 ```
 
 ## Tools
