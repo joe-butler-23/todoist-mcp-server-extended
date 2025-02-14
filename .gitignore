@@ -5,6 +5,10 @@ package-lock.json
 # Build output
 dist/
 
+# Project Docs
+
+claude-project-docs/
+
 # Environment variables
 .env
 
