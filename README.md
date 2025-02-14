@@ -17,7 +17,7 @@ For a complete list of available tools and their usage, see [TOOLS.md](TOOLS.md)
 ## Installation
 
 ```bash
-npm install -g todoist-mcp-enhanced-server
+not-published-on-npm-yet
 ```
 
 ## Setup
