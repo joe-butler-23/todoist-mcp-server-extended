@@ -1,5 +1,7 @@
 # Todoist Extended Server
 
+[![smithery badge](https://smithery.ai/badge/@Chrusic/todoist-mcp-server-extended)](https://smithery.ai/server/@Chrusic/todoist-mcp-server-extended)
+
 An MCP (Model Context Protocol) server implementation that integrates Claude with Todoist, enabling natural language task management. This server allows Claude to interact with your Todoist tasks, projects, sections, and labels using everyday language.
 
 ## Features
@@ -16,6 +18,15 @@ For a complete list of available tools and their usage, see [TOOLS.md](TOOLS.md)
 
 ## Installation
 
+### Installing via Smithery
+
+To install Todoist Extended Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@Chrusic/todoist-mcp-server-extended):
+
+```bash
+npx -y @smithery/cli install @Chrusic/todoist-mcp-server-extended --client claude
+```
+
+### Manual Installation
 ```bash
 not-published-on-npm-yet
 ```
