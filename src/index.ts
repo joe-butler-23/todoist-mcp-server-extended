@@ -9,7 +9,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { TodoistApi } from "@doist/todoist-api-typescript";
 
-// Define tools
+// Define task tools
 const GET_PROJECTS_TOOL: Tool = {
   name: "todoist_get_projects",
   description: "Get all projects from Todoist",
@@ -274,6 +274,133 @@ const COMPLETE_TASK_TOOL: Tool = {
   }
 };
 
+// Personal Label Management Tools
+const GET_PERSONAL_LABELS_TOOL: Tool = {
+  name: "todoist_get_personal_labels",
+  description: "Get all personal labels from Todoist",
+  inputSchema: {
+    type: "object",
+    properties: {}
+  }
+};
+
+const CREATE_PERSONAL_LABEL_TOOL: Tool = {
+  name: "todoist_create_personal_label",
+  description: "Create a new personal label in Todoist",
+  inputSchema: {
+    type: "object",
+    properties: {
+      name: {
+        type: "string",
+        description: "Name of the label"
+      },
+      color: {
+        type: "string",
+        description: "Color of the label (optional)",
+        enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", 
+               "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", 
+               "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+      },
+      order: {
+        type: "number",
+        description: "Order of the label (optional)"
+      },
+      is_favorite: {
+        type: "boolean",
+        description: "Whether the label is a favorite (optional)"
+      }
+    },
+    required: ["name"]
+  }
+};
+
+const GET_PERSONAL_LABEL_TOOL: Tool = {
+  name: "todoist_get_personal_label",
+  description: "Get a personal label by ID",
+  inputSchema: {
+    type: "object",
+    properties: {
+      label_id: {
+        type: "string",
+        description: "ID of the label to retrieve"
+      }
+    },
+    required: ["label_id"]
+  }
+};
+
+const UPDATE_PERSONAL_LABEL_TOOL: Tool = {
+  name: "todoist_update_personal_label",
+  description: "Update an existing personal label in Todoist",
+  inputSchema: {
+    type: "object",
+    properties: {
+      label_id: {
+        type: "string",
+        description: "ID of the label to update"
+      },
+      name: {
+        type: "string",
+        description: "New name for the label (optional)"
+      },
+      color: {
+        type: "string",
+        description: "New color for the label (optional)",
+        enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", 
+               "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", 
+               "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+      },
+      order: {
+        type: "number",
+        description: "New order for the label (optional)"
+      },
+      is_favorite: {
+        type: "boolean",
+        description: "Whether the label is a favorite (optional)"
+      }
+    },
+    required: ["label_id"]
+  }
+};
+
+const DELETE_PERSONAL_LABEL_TOOL: Tool = {
+  name: "todoist_delete_personal_label",
+  description: "Delete a personal label from Todoist",
+  inputSchema: {
+    type: "object",
+    properties: {
+      label_id: {
+        type: "string",
+        description: "ID of the label to delete"
+      }
+    },
+    required: ["label_id"]
+  }
+};
+
+// Task Label Management Tool
+const UPDATE_TASK_LABELS_TOOL: Tool = {
+  name: "todoist_update_task_labels",
+  description: "Update the labels of a task in Todoist",
+  inputSchema: {
+    type: "object",
+    properties: {
+      task_name: {
+        type: "string",
+        description: "Name/content of the task to update labels for"
+      },
+      labels: {
+        type: "array",
+        items: {
+          type: "string"
+        },
+        description: "Array of label names to set for the task"
+      }
+    },
+    required: ["task_name", "labels"]
+  }
+};
+
 // Server implementation
 const server = new Server(
   {
@@ -297,8 +424,9 @@ if (!TODOIST_API_TOKEN) {
 // Initialize Todoist client
 const todoistClient = new TodoistApi(TODOIST_API_TOKEN);
 
-// Type guards for arguments
-function isCreateTaskArgs(args: unknown): args is { 
+// Type guards for arguments (original typeguards)
+
+function isCreateTaskArgs(args: unknown): args is {
   content: string;
   description?: string;
   due_string?: string;
@@ -314,7 +442,7 @@ function isCreateTaskArgs(args: unknown): args is {
   );
 }
 
-function isGetTasksArgs(args: unknown): args is { 
+function isGetTasksArgs(args: unknown): args is {
   project_id?: string;
   section_id?: string;
   filter?: string;
@@ -437,7 +565,78 @@ function isMoveTaskArgs(args: unknown): args is {
   );
 }
 
-// Tool handlers
+// Type guards for label management
+function isGetPersonalLabelsArgs(args: unknown): args is {} {
+  return typeof args === "object" && args !== null;
+}
+
+function isCreatePersonalLabelArgs(args: unknown): args is {
+  name: string;
+  color?: string;
+  order?: number;
+  is_favorite?: boolean;
+} {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    "name" in args &&
+    typeof (args as { name: string }).name === "string"
+  );
+}
+
+function isGetPersonalLabelArgs(args: unknown): args is {
+  label_id: string;
+} {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    "label_id" in args &&
+    typeof (args as { label_id: string }).label_id === "string"
+  );
+}
+
+function isUpdatePersonalLabelArgs(args: unknown): args is {
+  label_id: string;
+  name?: string;
+  color?: string;
+  order?: number;
+  is_favorite?: boolean;
+} {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    "label_id" in args &&
+    typeof (args as { label_id: string }).label_id === "string"
+  );
+}
+
+function isDeletePersonalLabelArgs(args: unknown): args is {
+  label_id: string;
+} {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    "label_id" in args &&
+    typeof (args as { label_id: string }).label_id === "string"
+  );
+}
+
+function isUpdateTaskLabelsArgs(args: unknown): args is {
+  task_name: string;
+  labels: string[];
+} {
+  return (
+    typeof args === "object" &&
+    args !== null &&
+    "task_name" in args &&
+    "labels" in args &&
+    typeof (args as { task_name: string }).task_name === "string" &&
+    Array.isArray((args as { labels: string[] }).labels)
+  );
+}
+
+
+// Tool handlers (Added label handlers)
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     CREATE_TASK_TOOL,
@@ -450,14 +649,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     UPDATE_PROJECT_TOOL,
     GET_PROJECT_SECTIONS_TOOL,
     CREATE_SECTION_TOOL,
-    MOVE_TASK_TOOL
+    MOVE_TASK_TOOL,
+    GET_PERSONAL_LABELS_TOOL,
+    CREATE_PERSONAL_LABEL_TOOL,
+    GET_PERSONAL_LABEL_TOOL,
+    UPDATE_PERSONAL_LABEL_TOOL,
+    DELETE_PERSONAL_LABEL_TOOL,
+    UPDATE_TASK_LABELS_TOOL
   ],
 }));
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const { name, arguments: args } = request.params;
-
+    // Original MCP handlers.
     if (!args) {
       throw new Error("No arguments provided");
     }
@@ -468,8 +673,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       const projects = await todoistClient.getProjects();
       return {
-        content: [{ 
-          type: "text", 
+        content: [{
+          type: "text",
           text: JSON.stringify(projects, null, 2)
         }],
         isError: false,
@@ -487,8 +692,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         isFavorite: args.favorite
       });
       return {
-        content: [{ 
-          type: "text", 
+        content: [{
+          type: "text",
           text: `Project created:\n${JSON.stringify(project, null, 2)}`
         }],
         isError: false,
@@ -505,8 +710,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         isFavorite: args.favorite
       });
       return {
-        content: [{ 
-          type: "text", 
+        content: [{
+          type: "text",
           text: `Project updated:\n${JSON.stringify(project, null, 2)}`
         }],
         isError: false,
@@ -519,8 +724,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       const sections = await todoistClient.getSections(args.project_id);
       return {
-        content: [{ 
-          type: "text", 
+        content: [{
+          type: "text",
           text: JSON.stringify(sections, null, 2)
         }],
         isError: false,
@@ -537,8 +742,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         order: args.order
       });
       return {
-        content: [{ 
-          type: "text", 
+        content: [{
+          type: "text",
           text: `Section created:\n${JSON.stringify(section, null, 2)}`
         }],
         isError: false,
@@ -552,15 +757,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       // First, search for the task
       const tasks = await todoistClient.getTasks();
-      const matchingTask = tasks.find(task => 
+      const matchingTask = tasks.find(task =>
         task.content.toLowerCase().includes(args.task_name.toLowerCase())
       );
 
       if (!matchingTask) {
         return {
-          content: [{ 
-            type: "text", 
-            text: `Could not find a task matching "${args.task_name}"` 
+          content: [{
+            type: "text",
+            text: `Could not find a task matching "${args.task_name}"`
           }],
           isError: true,
         };
@@ -572,11 +777,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (args.section_id) updateData.sectionId = args.section_id;
 
       const updatedTask = await todoistClient.updateTask(matchingTask.id, updateData);
-      
+
       return {
-        content: [{ 
-          type: "text", 
-          text: `Task "${matchingTask.content}" moved successfully:\n${JSON.stringify(updatedTask, null, 2)}` 
+        content: [{
+          type: "text",
+          text: `Task "${matchingTask.content}" moved successfully:\n${JSON.stringify(updatedTask, null, 2)}`
         }],
         isError: false,
       };
@@ -595,9 +800,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         sectionId: args.section_id
       });
       return {
-        content: [{ 
-          type: "text", 
-          text: `Task created:\nTitle: ${task.content}${task.description ? `\nDescription: ${task.description}` : ''}${task.due ? `\nDue: ${task.due.string}` : ''}${task.priority ? `\nPriority: ${task.priority}` : ''}${task.projectId ? `\nProject ID: ${task.projectId}` : ''}${task.sectionId ? `\nSection ID: ${task.sectionId}` : ''}` 
+        content: [{
+          type: "text",
+          text: `Task created:\nTitle: ${task.content}${task.description ? `\nDescription: ${task.description}` : ''}${task.due ? `\nDue: ${task.due.string}` : ''}${task.priority ? `\nPriority: ${task.priority}` : ''}${task.projectId ? `\nProject ID: ${task.projectId}` : ''}${task.sectionId ? `\nSection ID: ${task.sectionId}` : ''}`
         }],
         isError: false,
       };
@@ -607,35 +812,90 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (!isGetTasksArgs(args)) {
         throw new Error("Invalid arguments for todoist_get_tasks");
       }
-      
-      const tasks = await todoistClient.getTasks({
-        projectId: args.project_id,
-        sectionId: args.section_id,
-        filter: args.filter
-      });
-
-      // Apply additional filters
-      let filteredTasks = tasks;
-      if (args.priority) {
-        filteredTasks = filteredTasks.filter(task => task.priority === args.priority);
+    
+      try {
+        // First get all tasks without filters
+        const allTasks = await todoistClient.getTasks();
+        
+        // Then apply filters in memory
+        let filteredTasks = allTasks;
+    
+        // Apply project filter
+        if (args.project_id) {
+          filteredTasks = filteredTasks.filter(task => task.projectId === args.project_id);
+        }
+    
+        // Apply section filter
+        if (args.section_id) {
+          filteredTasks = filteredTasks.filter(task => task.sectionId === args.section_id);
+        }
+    
+        // Apply priority filter
+        if (args.priority) {
+          filteredTasks = filteredTasks.filter(task => task.priority === args.priority);
+        }
+    
+        // Apply custom filter if provided
+        if (args.filter) {
+          // Basic text search in content and description
+          filteredTasks = filteredTasks.filter(task => {
+            const searchText = args.filter?.toLowerCase() || '';
+            return (
+              task.content.toLowerCase().includes(searchText) ||
+              (task.description && task.description.toLowerCase().includes(searchText))
+            );
+          });
+        }
+    
+        // Apply limit
+        if (args.limit && args.limit > 0) {
+          filteredTasks = filteredTasks.slice(0, args.limit);
+        }
+    
+        // Format the response
+        const taskList = filteredTasks.map(task => {
+          let taskInfo = `- ${task.content}`;
+          
+          if (task.description) {
+            taskInfo += `\n  Description: ${task.description}`;
+          }
+          if (task.due) {
+            taskInfo += `\n  Due: ${task.due.string || task.due.date}`;
+          }
+          if (task.priority) {
+            taskInfo += `\n  Priority: ${task.priority}`;
+          }
+          if (task.labels && task.labels.length > 0) {
+            taskInfo += `\n  Labels: ${task.labels.join(', ')}`;
+          }
+          if (task.projectId) {
+            taskInfo += `\n  Project ID: ${task.projectId}`;
+          }
+          if (task.sectionId) {
+            taskInfo += `\n  Section ID: ${task.sectionId}`;
+          }
+          
+          return taskInfo;
+        }).join('\n\n');
+    
+        return {
+          content: [{
+            type: "text",
+            text: filteredTasks.length > 0 ? taskList : "No tasks found matching the criteria"
+          }],
+          isError: false,
+        };
+    
+      } catch (error) {
+        console.error('Error in todoist_get_tasks:', error);
+        return {
+          content: [{
+            type: "text",
+            text: `Error retrieving tasks: ${error instanceof Error ? error.message : String(error)}`
+          }],
+          isError: true,
+        };
       }
-      
-      // Apply limit
-      if (args.limit && args.limit > 0) {
-        filteredTasks = filteredTasks.slice(0, args.limit);
-      }
-      
-      const taskList = filteredTasks.map(task => 
-        `- ${task.content}${task.description ? `\n  Description: ${task.description}` : ''}${task.due ? `\n  Due: ${task.due.string}` : ''}${task.priority ? `\n  Priority: ${task.priority}` : ''}${task.projectId ? `\n  Project ID: ${task.projectId}` : ''}${task.sectionId ? `\n  Section ID: ${task.sectionId}` : ''}`
-      ).join('\n\n');
-      
-      return {
-        content: [{ 
-          type: "text", 
-          text: filteredTasks.length > 0 ? taskList : "No tasks found matching the criteria" 
-        }],
-        isError: false,
-      };
     }
 
     if (name === "todoist_update_task") {
@@ -645,15 +905,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       // First, search for the task
       const tasks = await todoistClient.getTasks();
-      const matchingTask = tasks.find(task => 
+      const matchingTask = tasks.find(task =>
         task.content.toLowerCase().includes(args.task_name.toLowerCase())
       );
 
       if (!matchingTask) {
         return {
-          content: [{ 
-            type: "text", 
-            text: `Could not find a task matching "${args.task_name}"` 
+          content: [{
+            type: "text",
+            text: `Could not find a task matching "${args.task_name}"`
           }],
           isError: true,
         };
@@ -669,11 +929,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (args.section_id) updateData.sectionId = args.section_id;
 
       const updatedTask = await todoistClient.updateTask(matchingTask.id, updateData);
-      
+
       return {
-        content: [{ 
-          type: "text", 
-          text: `Task "${matchingTask.content}" updated:\n${JSON.stringify(updatedTask, null, 2)}` 
+        content: [{
+          type: "text",
+          text: `Task "${matchingTask.content}" updated:\n${JSON.stringify(updatedTask, null, 2)}`
         }],
         isError: false,
       };
@@ -686,15 +946,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       // First, search for the task
       const tasks = await todoistClient.getTasks();
-      const matchingTask = tasks.find(task => 
+      const matchingTask = tasks.find(task =>
         task.content.toLowerCase().includes(args.task_name.toLowerCase())
       );
 
       if (!matchingTask) {
         return {
-          content: [{ 
-            type: "text", 
-            text: `Could not find a task matching "${args.task_name}"` 
+          content: [{
+            type: "text",
+            text: `Could not find a task matching "${args.task_name}"`
           }],
           isError: true,
         };
@@ -702,11 +962,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       // Delete the task
       await todoistClient.deleteTask(matchingTask.id);
-      
+
       return {
-        content: [{ 
-          type: "text", 
-          text: `Successfully deleted task: "${matchingTask.content}"` 
+        content: [{
+          type: "text",
+          text: `Successfully deleted task: "${matchingTask.content}"`
         }],
         isError: false,
       };
@@ -719,10 +979,125 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       // First, search for the task
       const tasks = await todoistClient.getTasks();
-      const matchingTask = tasks.find(task => 
+      const matchingTask = tasks.find(task =>
         task.content.toLowerCase().includes(args.task_name.toLowerCase())
       );
 
+      if (!matchingTask) {
+        return {
+          content: [{
+            type: "text",
+            text: `Could not find a task matching "${args.task_name}"`
+          }],
+          isError: true,
+        };
+      }
+
+      // Complete the task
+      await todoistClient.closeTask(matchingTask.id);
+
+      return {
+        content: [{
+          type: "text",
+          text: `Successfully completed task: "${matchingTask.content}"`
+        }],
+        isError: false,
+      };
+    }
+
+    // Handlers for label management
+
+    if (name === "todoist_get_personal_labels") {
+      if (!isGetPersonalLabelsArgs(args)) {
+        throw new Error("Invalid arguments for todoist_get_personal_labels");
+      }
+      const labels = await todoistClient.getLabels();
+      return {
+        content: [{ 
+          type: "text", 
+          text: JSON.stringify(labels, null, 2)
+        }],
+        isError: false,
+      };
+    }
+
+    if (name === "todoist_create_personal_label") {
+      if (!isCreatePersonalLabelArgs(args)) {
+        throw new Error("Invalid arguments for todoist_create_personal_label");
+      }
+      const label = await todoistClient.addLabel({
+        name: args.name,
+        color: args.color,
+        order: args.order,
+        isFavorite: args.is_favorite
+      });
+      return {
+        content: [{ 
+          type: "text", 
+          text: `Label created:\n${JSON.stringify(label, null, 2)}`
+        }],
+        isError: false,
+      };
+    }
+
+    if (name === "todoist_get_personal_label") {
+      if (!isGetPersonalLabelArgs(args)) {
+        throw new Error("Invalid arguments for todoist_get_personal_label");
+      }
+      const label = await todoistClient.getLabel(args.label_id);
+      return {
+        content: [{ 
+          type: "text", 
+          text: JSON.stringify(label, null, 2)
+        }],
+        isError: false,
+      };
+    }
+
+    if (name === "todoist_update_personal_label") {
+      if (!isUpdatePersonalLabelArgs(args)) {
+        throw new Error("Invalid arguments for todoist_update_personal_label");
+      }
+      const label = await todoistClient.updateLabel(args.label_id, {
+        name: args.name,
+        color: args.color,
+        order: args.order,
+        isFavorite: args.is_favorite
+      });
+      return {
+        content: [{ 
+          type: "text", 
+          text: `Label updated:\n${JSON.stringify(label, null, 2)}`
+        }],
+        isError: false,
+      };
+    }
+
+    if (name === "todoist_delete_personal_label") {
+      if (!isDeletePersonalLabelArgs(args)) {
+        throw new Error("Invalid arguments for todoist_delete_personal_label");
+      }
+      await todoistClient.deleteLabel(args.label_id);
+      return {
+        content: [{ 
+          type: "text", 
+          text: `Successfully deleted label with ID: ${args.label_id}`
+        }],
+        isError: false,
+      };
+    }
+
+    if (name === "todoist_update_task_labels") {
+      if (!isUpdateTaskLabelsArgs(args)) {
+        throw new Error("Invalid arguments for todoist_update_task_labels");
+      }
+    
+      // First, search for the task
+      const tasks = await todoistClient.getTasks();
+      const matchingTask = tasks.find(task => 
+        task.content.toLowerCase().includes(args.task_name.toLowerCase())
+      );
+    
       if (!matchingTask) {
         return {
           content: [{ 
@@ -732,18 +1107,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           isError: true,
         };
       }
+    
+      // Update the task's labels
+      const updatedTask = await todoistClient.updateTask(matchingTask.id, {
+        labels: args.labels
+      });
 
-      // Complete the task
-      await todoistClient.closeTask(matchingTask.id);
-      
       return {
         content: [{ 
           type: "text", 
-          text: `Successfully completed task: "${matchingTask.content}"` 
+          text: `Labels updated for task "${matchingTask.content}":\n${JSON.stringify(updatedTask, null, 2)}` 
         }],
         isError: false,
       };
     }
+
 
     return {
       content: [{ type: "text", text: `Unknown tool: ${name}` }],
