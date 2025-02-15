@@ -1,5 +1,5 @@
 {
-  "name": "todoist-mcp-enhanced-server",
+  "name": "todoist-mcp-server-extended",
   "version": "0.2.0",
   "description": "Extended Todoist MCP server with additional capabilities including label management",
   "main": "dist/index.js",
