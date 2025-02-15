@@ -1,4 +1,4 @@
-# Todoist MCP Server Enhanced
+# Todoist MCP Server Extended
 
 [![smithery badge](https://smithery.ai/badge/@Chrusic/todoist-mcp-server-extended)](https://smithery.ai/server/@Chrusic/todoist-mcp-server-extended)
 
@@ -14,7 +14,7 @@ An MCP (Model Context Protocol) server implementation that integrates Claude wit
 * **Flexible Filtering**: Filter tasks by project, section, due date, priority, and labels
 * **Rich Task Details**: Support for descriptions, due dates, priority levels, and project/section assignment
 
-For a complete list of available tools and their usage, see [tools.md](tools.md) in .docs.
+For a complete list of available tools and their usage, see [tools.md](tools.md) in doc.
 
 ## Installation
 
@@ -29,7 +29,7 @@ npx -y @smithery/cli install @Chrusic/todoist-mcp-server-extended --client claud
 ### Manual Installation
 
 ```bash
-not-published-on-npm-yet
+npm install -g @Chrusic/todoist-mcp-server-extended
 ```
 
 ## Setup
