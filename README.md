@@ -1,4 +1,4 @@
-# Todoist Extended Server
+# Todoist MCP Server Enhanced
 
 [![smithery badge](https://smithery.ai/badge/@Chrusic/todoist-mcp-server-extended)](https://smithery.ai/server/@Chrusic/todoist-mcp-server-extended)
 
@@ -14,7 +14,7 @@ An MCP (Model Context Protocol) server implementation that integrates Claude wit
 * **Flexible Filtering**: Filter tasks by project, section, due date, priority, and labels
 * **Rich Task Details**: Support for descriptions, due dates, priority levels, and project/section assignment
 
-For a complete list of available tools and their usage, see [TOOLS.md](TOOLS.md).
+For a complete list of available tools and their usage, see [tools.md](tools.md) in .docs.
 
 ## Installation
 
@@ -27,6 +27,7 @@ npx -y @smithery/cli install @Chrusic/todoist-mcp-server-extended --client claud
 ```
 
 ### Manual Installation
+
 ```bash
 not-published-on-npm-yet
 ```
@@ -34,6 +35,7 @@ not-published-on-npm-yet
 ## Setup
 
 ### Getting a Todoist API Token
+
 1. Log in to your Todoist account
 2. Navigate to Settings → Integrations
 3. Find your API token under "Developer"
@@ -61,7 +63,8 @@ Add to your Cline MCP settings file:
 ## Example Usage
 
 ### Basic Operations
-```
+
+``` text
 "Create task 'Review PR' in project 'Work' section 'To Do'"
 "Add label 'Important' to task 'Review PR'"
 "Show all tasks with label 'Important' in project 'Work'"
@@ -72,6 +75,7 @@ Add to your Cline MCP settings file:
 ## Development
 
 ### Building from source
+
 ```bash
 # Clone the repository
 git clone https://github.com/Chrusic/todoist-mcp-server-extended.git
@@ -87,10 +91,13 @@ npm run build
 ```
 
 ## Contributing
+
 Contributions are welcome! Feel free to submit a Pull Request.
 
 ## License
+
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Issues and Support
+
 If you encounter any issues or need support, please file an issue on the [GitHub repository](https://github.com/Chrusic/todoist-mcp-server-extended/issues).

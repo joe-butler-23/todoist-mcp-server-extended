@@ -6,8 +6,7 @@ package-lock.json
 dist/
 
 # Project Docs
-
-claude-project-docs/
+project-resources/
 
 # Environment variables
 .env
