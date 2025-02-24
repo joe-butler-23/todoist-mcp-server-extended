@@ -17,9 +17,10 @@ This guide covers setting up the Todoist Model Context Protocol (MCP) server on 
     * [2. Install Node.js](#2-install-nodejs)
     * [3. Get Your Todoist API Token](#3-get-your-todoist-api-token)
     * [4a. Easy Install with Smithery](#4a-easy-install-with-smithery)
-    * [4b. Manual Install for Development *(Advanced)*](#4b-manual-install-for-development-advanced)
+    * [4b. Easy Install with npm](#4b-easy-install-with-npm)
+    * [4c. Manual Install for Development *(Advanced)*](#4c-manual-install-for-development-advanced)
   * [Usage](#usage)
-  * [Troubleshooting](#troubleshooting)
+  * [Simple Troubleshooting](#simple-troubleshooting)
   * [Notes](#notes)
 
 
@@ -66,11 +67,52 @@ From CMD as **admin**:
    npx -y @smithery/cli@latest install @Chrusic/todoist-mcp-server-extended --client claude
    ```
 
-3. When prompted, paste in your Todoist API token from step 3
+3. When prompted, paste in your Todoist API token from step 3.
 
 That's it! Smithery will automatically install the MCP server and configure Claude to use it. Skip to the Usage section below.
 
-### 4b. Manual Install for Development *(Advanced)*
+### 4b. Easy Install with npm
+
+1. Open Command Prompt or PowerShell
+2. Run the following command:
+
+``` bash
+    npm install -g @chrusic/todoist-mcp-server-extended
+``` 
+
+3. Open Claude Desktop and Navigate to: `File -> Settings -> Developer -> "Edit Config"`. That will Open the folder with the claude_desktop_config.json file.
+
+4. Open the `claude_desktop_config.json` with your favorite json editor and paste the following snippet. **Replace the `PASTE-YOUR-API-TOKEN-HERE` with the API token aquired from todoist earlier.**
+
+``` json
+    "todoist": {
+      "command": "npx",
+      "args": ["-y", "@chrusic/todoist-mcp-server-extended"],
+      "env": {
+          "TODOIST_API_TOKEN": "PASTE-YOUR-API-TOKEN-HERE"
+      }
+    }
+```
+
+5. When all put together, it should look something like this: 
+
+``` json
+    {
+      "mcpServers": {
+          "todoist": {
+          "command": "npx",
+          "args": ["-y", "@chrusic/todoist-mcp-server-extended"],
+          "env": {
+              "TODOIST_API_TOKEN": "PASTE-YOUR-API-TOKEN-HERE"
+          }
+        }
+      }
+    }
+```
+
+6. Todoist MCP Server extended is now configured for use. Skip to the Usage section below! 
+
+### 4c. Manual Install for Development *(Advanced)*
 
 1. Install Git from CMD as **admin**:
 
@@ -125,7 +167,7 @@ That's it! Smithery will automatically install the MCP server and configure Clau
       ```  
 
    e. Replace `"C:\\path\\to\\todoist-mcp-server-extended\\dist\\index.js"` with the actual path to the built index.js file
-   f. Replace `"your_todoist_api_token"` with your Todoist API token copied in step 3
+   f. Replace `"your_todoist_api_token"` with your Todoist API token copied in step 3.
 
 ## Usage
 
@@ -137,14 +179,15 @@ That's it! Smithery will automatically install the MCP server and configure Clau
    - "Show all my projects"
    - "Create a new project called 'Home Renovation'"
 
-## Troubleshooting
+## Simple Troubleshooting
 
 If you encounter any issues:
 
 1. Check that the path to the index.js file is correct and uses double backslashes in Windows paths
 2. Ensure your Todoist API token is valid
-3. Look for error messages in the Claude Developer Console (View → Toggle Developer Tools)  
-4. Make sure Node.js is properly installed by running `node --version` in Command Prompt
+3. Make sure you only have one entry for each MCP server in the claude_desktop_config.json
+4. Look for error messages in the Claude Developer Console (View → Toggle Developer Tools)  
+5. Make sure Node.js is properly installed by running `node --version` in Command Prompt
 
 ## Notes
 
