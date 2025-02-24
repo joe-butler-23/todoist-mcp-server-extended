@@ -142,3 +142,25 @@ Update the labels of a task:
 
 * Required: task_name, labels (array of label names)
 * Example: "Add labels 'Important' and 'Urgent' to task 'Review PR'"
+
+## Parameter Precedence and Edge Cases
+
+### Due Date Parameter Precedence
+
+When creating or updating tasks, Todoist API has a specific precedence order when multiple due date parameters are provided simultaneously:
+
+* When both `due_date` and `due_string` are provided, the API will prioritize the `due_date` parameter (the exact date in YYYY-MM-DD format).
+* More specific date formats take precedence over natural language descriptions.
+* The API does not reject requests with conflicting due date parameters but silently chooses the highest precedence parameter.
+
+For best results and predictable behavior:
+* Use only one due date parameter per request (`due_string`, `due_date`, or `due_datetime`).
+* When using batch operations, ensure each task in the batch has consistent parameter usage.
+
+### Batch Operations
+
+All task tools support both single operations and batch operations through the `tasks` array parameter. When using batch operations:
+
+* Empty arrays will be rejected with appropriate error messages.
+* Operations continue processing even if some individual items fail.
+* Results include detailed success/failure information for each item in the batch.
