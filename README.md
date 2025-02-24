@@ -14,9 +14,11 @@ An MCP (Model Context Protocol) server implementation that integrates Claude wit
 * **Flexible Filtering**: Filter tasks by project, section, due date, priority, and labels
 * **Rich Task Details**: Support for descriptions, due dates, priority levels, and project/section assignment
 
-For a complete list of available tools and their usage, see [tools.md](tools.md) in doc.
+For a complete list of available tools and enhancements as well as their usage, see [tools.md](tools.md) in doc.
 
-## Installation
+## Quick Installation Guide
+
+Comprehensive installation guide can be found in the doc\Howto - Setting up Claude Todoist MCP on Windows.md.
 
 ### Installing via Smithery
 
@@ -25,13 +27,6 @@ To install Todoist Extended Server for Claude Desktop automatically via [Smither
 ```bash
 npx -y @smithery/cli install @Chrusic/todoist-mcp-server-extended --client claude
 ```
-
-### Manual Installation
-
-```bash
-npm install -g @Chrusic/todoist-mcp-server-extended
-```
-
 ## Setup
 
 ### Getting a Todoist API Token
@@ -41,24 +36,6 @@ npm install -g @Chrusic/todoist-mcp-server-extended
 3. Find your API token under "Developer"
 
 For more information about the Todoist API, visit the [official Todoist API documentation](https://developer.todoist.com/guides/#developing-with-todoist).
-
-### Usage with Cline
-
-Add to your Cline MCP settings file:
-
-```json
-{
-  "mcpServers": {
-    "todoist": {
-      "command": "npx",
-      "args": ["todoist-mcp-enhanced-server"],
-      "env": {
-        "TODOIST_API_TOKEN": "your_api_token_here"
-      }
-    }
-  }
-}
-```
 
 ## Example Usage
 
