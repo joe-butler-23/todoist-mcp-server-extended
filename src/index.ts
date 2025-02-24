@@ -737,7 +737,7 @@ if (!TODOIST_API_TOKEN) {
 // Initialize Todoist client
 const todoistClient = new TodoistApi(TODOIST_API_TOKEN);
 
-// Task Tools TypeUards
+// Task Tools TypeGuards
 
 function isCreateTaskArgs(args: unknown): args is {
   content?: string;
