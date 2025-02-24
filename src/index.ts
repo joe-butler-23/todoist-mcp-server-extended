@@ -9,7 +9,9 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { TodoistApi } from "@doist/todoist-api-typescript";
 
-// Define task tools
+// Define task tools in order: Project, Helper tools, Task Tools, Label Tools. 
+
+// Project Tools
 const GET_PROJECTS_TOOL: Tool = {
   name: "todoist_get_projects",
   description: "Get all projects from Todoist",
@@ -90,6 +92,7 @@ const GET_PROJECT_SECTIONS_TOOL: Tool = {
   }
 };
 
+// Helper tools
 const CREATE_SECTION_TOOL: Tool = {
   name: "todoist_create_section",
   description: "Create a new section in a Todoist project",
@@ -113,6 +116,7 @@ const CREATE_SECTION_TOOL: Tool = {
   }
 };
 
+// General Task tools
 const MOVE_TASK_TOOL: Tool = {
   name: "todoist_move_task",
   description: "Move a task to a different section and/or project",
@@ -174,7 +178,7 @@ const CREATE_TASK_TOOL: Tool = {
 
 const GET_TASKS_TOOL: Tool = {
   name: "todoist_get_tasks",
-  description: "Get a list of tasks from Todoist with various filters",
+  description: "Get a list of tasks from Todoist with various filters - handles both single and batch retrieval",
   inputSchema: {
     type: "object",
     properties: {
@@ -186,9 +190,22 @@ const GET_TASKS_TOOL: Tool = {
         type: "string",
         description: "Filter tasks by section ID (optional)"
       },
+      label: {
+        type: "string",
+        description: "Filter tasks by label name (optional)"
+      },
       filter: {
         type: "string",
         description: "Natural language filter like 'today', 'tomorrow', 'next week', 'priority 1', 'overdue' (optional)"
+      },
+      lang: {
+        type: "string",
+        description: "IETF language tag defining what language filter is written in (optional)"
+      },
+      ids: {
+        type: "array",
+        items: { type: "string" },
+        description: "Array of specific task IDs to retrieve (optional)"
       },
       priority: {
         type: "number",
@@ -197,7 +214,7 @@ const GET_TASKS_TOOL: Tool = {
       },
       limit: {
         type: "number",
-        description: "Maximum number of tasks to return (optional)",
+        description: "Maximum number of tasks to return (optional, client-side filtering)",
         default: 10
       }
     }
@@ -424,7 +441,7 @@ if (!TODOIST_API_TOKEN) {
 // Initialize Todoist client
 const todoistClient = new TodoistApi(TODOIST_API_TOKEN);
 
-// Type guards for arguments (original typeguards)
+// Task TypeUards
 
 function isCreateTaskArgs(args: unknown): args is {
   content: string;
@@ -445,7 +462,10 @@ function isCreateTaskArgs(args: unknown): args is {
 function isGetTasksArgs(args: unknown): args is {
   project_id?: string;
   section_id?: string;
+  label?: string;
   filter?: string;
+  lang?: string;
+  ids?: string[];
   priority?: number;
   limit?: number;
 } {
@@ -493,6 +513,7 @@ function isCompleteTaskArgs(args: unknown): args is {
     typeof (args as { task_name: string }).task_name === "string"
   );
 }
+// Project TypeGuards
 
 function isGetProjectsArgs(args: unknown): args is {} {
   return typeof args === "object" && args !== null;
@@ -565,7 +586,8 @@ function isMoveTaskArgs(args: unknown): args is {
   );
 }
 
-// Type guards for label management
+// Label Management TypeGuards
+
 function isGetPersonalLabelsArgs(args: unknown): args is {} {
   return typeof args === "object" && args !== null;
 }
@@ -635,8 +657,7 @@ function isUpdateTaskLabelsArgs(args: unknown): args is {
   );
 }
 
-
-// Tool handlers (Added label handlers)
+// Tool handlers
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     CREATE_TASK_TOOL,
@@ -666,7 +687,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (!args) {
       throw new Error("No arguments provided");
     }
-
+    // Project Handlers
     if (name === "todoist_get_projects") {
       if (!isGetProjectsArgs(args)) {
         throw new Error("Invalid arguments for todoist_get_projects");
@@ -786,6 +807,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         isError: false,
       };
     }
+    // Task Handlers
 
     if (name === "todoist_create_task") {
       if (!isCreateTaskArgs(args)) {
@@ -814,84 +836,71 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     
       try {
-        // First get all tasks without filters
-        const allTasks = await todoistClient.getTasks();
+        // Build API request parameters
+        const requestParams: any = {};
         
-        // Then apply filters in memory
-        let filteredTasks = allTasks;
-    
-        // Apply project filter
         if (args.project_id) {
-          filteredTasks = filteredTasks.filter(task => task.projectId === args.project_id);
+          requestParams.project_id = args.project_id;
         }
-    
-        // Apply section filter
+        
         if (args.section_id) {
-          filteredTasks = filteredTasks.filter(task => task.sectionId === args.section_id);
+          requestParams.section_id = args.section_id;
+        }
+        
+        if (args.label) {
+          requestParams.label = args.label;
+        }
+        
+        if (args.filter) {
+          requestParams.filter = args.filter;
+        }
+        
+        if (args.lang) {
+          requestParams.lang = args.lang;
+        }
+        
+        if (args.ids && args.ids.length > 0) {
+          requestParams.ids = args.ids;
         }
     
-        // Apply priority filter
+        // Get tasks with a single API call using appropriate filters
+        const allTasks = await todoistClient.getTasks(requestParams);
+        
+        // Apply any additional client-side filtering
+        let filteredTasks = allTasks;
+        
+        // Apply priority filter (API doesn't support this directly)
         if (args.priority) {
           filteredTasks = filteredTasks.filter(task => task.priority === args.priority);
         }
-    
-        // Apply custom filter if provided
-        if (args.filter) {
-          // Basic text search in content and description
-          filteredTasks = filteredTasks.filter(task => {
-            const searchText = args.filter?.toLowerCase() || '';
-            return (
-              task.content.toLowerCase().includes(searchText) ||
-              (task.description && task.description.toLowerCase().includes(searchText))
-            );
-          });
-        }
-    
+        
         // Apply limit
-        if (args.limit && args.limit > 0) {
+        if (args.limit && args.limit > 0 && filteredTasks.length > args.limit) {
           filteredTasks = filteredTasks.slice(0, args.limit);
         }
-    
-        // Format the response
-        const taskList = filteredTasks.map(task => {
-          let taskInfo = `- ${task.content}`;
-          
-          if (task.description) {
-            taskInfo += `\n  Description: ${task.description}`;
-          }
-          if (task.due) {
-            taskInfo += `\n  Due: ${task.due.string || task.due.date}`;
-          }
-          if (task.priority) {
-            taskInfo += `\n  Priority: ${task.priority}`;
-          }
-          if (task.labels && task.labels.length > 0) {
-            taskInfo += `\n  Labels: ${task.labels.join(', ')}`;
-          }
-          if (task.projectId) {
-            taskInfo += `\n  Project ID: ${task.projectId}`;
-          }
-          if (task.sectionId) {
-            taskInfo += `\n  Section ID: ${task.sectionId}`;
-          }
-          
-          return taskInfo;
-        }).join('\n\n');
-    
+        
+        // Format response as JSON for easier LLM parsing
         return {
           content: [{
             type: "text",
-            text: filteredTasks.length > 0 ? taskList : "No tasks found matching the criteria"
+            text: JSON.stringify({
+              success: true,
+              tasks: filteredTasks,
+              count: filteredTasks.length
+            }, null, 2)
           }],
           isError: false,
         };
-    
+        
       } catch (error) {
         console.error('Error in todoist_get_tasks:', error);
         return {
           content: [{
             type: "text",
-            text: `Error retrieving tasks: ${error instanceof Error ? error.message : String(error)}`
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
           }],
           isError: true,
         };
@@ -1005,7 +1014,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     }
 
-    // Handlers for label management
+    // Label Management Handlers
 
     if (name === "todoist_get_personal_labels") {
       if (!isGetPersonalLabelsArgs(args)) {
