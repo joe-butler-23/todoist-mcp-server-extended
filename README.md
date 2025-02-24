@@ -14,11 +14,11 @@ An MCP (Model Context Protocol) server implementation that integrates Claude wit
 * **Flexible Filtering**: Filter tasks by project, section, due date, priority, and labels
 * **Rich Task Details**: Support for descriptions, due dates, priority levels, and project/section assignment
 
-For a complete list of available tools and enhancements as well as their usage, see [tools.md](tools.md) in doc.
+For a complete list of available tools and enhancements as well as their usage, see ![tools.md](doc/tools.md).
 
 ## Quick Installation Guide
 
-Comprehensive installation guide can be found in the doc\Howto - Setting up Claude Todoist MCP on Windows.md.
+Comprehensive installation guide can be found in the ![How-to Guide.](doc/Howto%20-%20Setting%20up%20Claude%20Todoist%20MCP%20on%20Windows.md)
 
 ### Installing via Smithery
 
@@ -56,7 +56,7 @@ For more information about the Todoist API, visit the [official Todoist API docu
 
 ### Building from source
 
-```bash
+``` bash
 # Clone the repository
 git clone https://github.com/Chrusic/todoist-mcp-server-extended.git
 

@@ -3,10 +3,25 @@
 
 This guide covers setting up the Todoist Model Context Protocol (MCP) server on Windows devices to enable Claude to interact with your Todoist tasks, projects, and labels.
 
-There are two methods to set this up:
+**There are two methods to set this up:**
 
 1. Using the Smithery package manager (recommended for most users)
 2. Manual setup (for development or advanced usage)
+
+## Table of contents
+* [Setting up Claude Todoist MCP on Windows](#setting-up-claude-todoist-mcp-on-windows)
+  * [Table of contents](#table-of-contents)
+  * [Requirements](#requirements)
+  * [Installation Steps](#installation-steps)
+    * [1. Install Claude Desktop App](#1-install-claude-desktop-app)
+    * [2. Install Node.js](#2-install-nodejs)
+    * [3. Get Your Todoist API Token](#3-get-your-todoist-api-token)
+    * [4a. Easy Install with Smithery](#4a-easy-install-with-smithery)
+    * [4b. Manual Install for Development *(Advanced)*](#4b-manual-install-for-development-advanced)
+  * [Usage](#usage)
+  * [Troubleshooting](#troubleshooting)
+  * [Notes](#notes)
+
 
 ## Requirements
 
@@ -66,7 +81,7 @@ That's it! Smithery will automatically install the MCP server and configure Clau
 2. Clone and Set Up the Todoist MCP Server
 
    a. Open Command Prompt or PowerShell
-   b. Navigate to your for storing the todoist repo  *(Example: `cd C:/git/YourRepoFolder`)*
+   b. Navigate to your desired director for storing the todoist repo  *(Example: `cd C:/git/YourRepoFolder`)*
    c. Clone the repository:
 
       ```cmd
@@ -88,7 +103,7 @@ That's it! Smithery will automatically install the MCP server and configure Clau
 
 3. Configure Claude Desktop
 
-   a. Open Claude and go to File → Settings (Ctrl+Comma)
+   a. Open Claude Desktop and go to File → Settings (Ctrl+Comma)
    b. Navigate to the Developer Tab
    c. Click "Edit Config"
    d. Add the following to your config file:
@@ -134,9 +149,9 @@ If you encounter any issues:
 ## Notes
 
 - Multiple MCPs can be added under the `mcpServers` section - only add new server entries, not the entire JSON structure again
-- Make sure to maintain proper JSON formatting when editing the config file
-- Keep your Todoist API token secure and never share it with others
+- Make sure to maintain proper JSON formatting when manually editing the config file
+- Keep your Todoist API token secure and never share it with others!
 
 That's it! Claude should now be able to interact with your Todoist account.
 
-***Note: Guide written with the help of Claude***
+***Note: Guide written with the help of Claude :smirk:***
