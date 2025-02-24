@@ -27,6 +27,9 @@ To install Todoist Extended Server for Claude Desktop automatically via [Smither
 ```bash
 npx -y @smithery/cli install @Chrusic/todoist-mcp-server-extended --client claude
 ```
+
+Also compatible with cline or windsurf, by changing last parameter to  `--client cline` or `--client windsurf`
+
 ## Setup
 
 ### Getting a Todoist API Token
