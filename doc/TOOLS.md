@@ -1,166 +1,197 @@
-# Available Tools
+# Todoist MCP Server Tools
 
-This document provides a comprehensive list of all available tools in the Todoist Extended Server.
+This document describes the available tools in the Todoist MCP Server. These tools allow interacting with Todoist projects, sections, tasks, and labels.
 
-## Project Management Tools
+## Project Tools
 
 ### todoist_get_projects
 
-Get a list of all projects:
-
-* Lists all projects with their IDs and attributes
-* Example: "Show all my projects"
+Get all projects from Todoist.
 
 ### todoist_create_project
 
-Create new projects:
+Create a new project in Todoist.
 
-* Required: name
-* Optional: parent_id (for nested projects), color, favorite status
-* Example: "Create project 'Work Tasks' with color blue"
+- `name` (string, required): Name of the project
+- `parent_id` (string, optional): Parent project ID for nested projects
+- `color` (string, optional): Color of the project. Allowed values: berry_red, red, orange, yellow, olive_green, lime_green, green, mint_green, teal, sky_blue, light_blue, blue, grape, violet, lavender, magenta, salmon, charcoal, grey, taupe
+- `favorite` (boolean, optional): Whether the project is a favorite
 
 ### todoist_update_project
 
-Update existing projects:
+Update an existing project in Todoist.
 
-* Required: project_id
-* Optional: name, color, favorite status
-* Example: "Update project 'Work Tasks' to be a favorite"
-
-## Section Management Tools
+- `project_id` (string, required): ID of the project to update  
+- `name` (string, optional): New name for the project
+- `color` (string, optional): New color for the project. Allowed values: berry_red, red, orange, yellow, olive_green, lime_green, green, mint_green, teal, sky_blue, light_blue, blue, grape, violet, lavender, magenta, salmon, charcoal, grey, taupe
+- `favorite` (boolean, optional): Whether the project should be a favorite
 
 ### todoist_get_project_sections
 
-Get sections within a project:
+Get all sections in a Todoist project.
 
-* Required: project_id
-* Lists all sections in the specified project
-* Example: "Show sections in project 'Work Tasks'"
+- `project_id` (string, required): ID of the project
+
+## Section Tools
 
 ### todoist_create_section
 
-Create new sections:
+Create a new section in a Todoist project.  
 
-* Required: project_id, name
-* Optional: order
-* Example: "Create section 'In Progress' in project 'Work Tasks'"
+- `project_id` (string, required): ID of the project
+- `name` (string, required): Name of the section
+- `order` (number, optional): Order of the section
 
-## Task Management Tools
+## Task Tools
+
+The task tools have been significantly enhanced compared to the base Todoist API to optimize for LLM usage, batch operations, and input/output handling.
 
 ### todoist_create_task
 
-Create new tasks with various attributes:
+Create one or more tasks in Todoist with full parameter support.
 
-* Required: content (task title)
-* Optional: description, due date, priority level (1-4), project_id, section_id
-* Example: "Create task 'Team Meeting' in project 'Work' section 'Planning'"
+Single task:
+
+- `content` (string, required): The content/title of the task
+- `description` (string, optional): Detailed description of the task
+- `project_id` (string, optional): ID of the project to add the task to
+- `section_id` (string, optional): ID of the section to add the task to
+- `parent_id` (string, optional): ID of the parent task for subtasks
+- `order` (number, optional): Position in the project or parent task
+- `labels` (array of strings, optional): Array of label names to apply to the task
+- `priority` (number, optional): Task priority from 1 (normal) to 4 (urgent)
+- `due_string` (string, optional): Natural language due date like 'tomorrow', 'next Monday'
+- `due_date` (string, optional): Due date in YYYY-MM-DD format
+- `due_datetime` (string, optional): Due date and time in RFC3339 format
+- `due_lang` (string, optional): 2-letter language code for due date parsing
+- `assignee_id` (string, optional): User ID to assign the task to
+- `duration` (number, optional): The duration amount of the task
+- `duration_unit` (string, optional): The duration unit ('minute' or 'day')
+- `deadline_date` (string, optional): Deadline date in YYYY-MM-DD format
+
+Batch tasks:
+
+- `tasks` (array, required): Array of task objects, each containing the fields above (content is required for each). Allows creating multiple tasks in a single request, improving efficiency for LLM interactions.
 
 ### todoist_get_tasks
 
-Retrieve and filter tasks:
+Get a list of tasks from Todoist with various filters. Handles both single and batch retrieval.
 
-* Filter by project, section, due date, priority
-* Natural language date filtering
-* Optional result limit
-* Example: "Show high priority tasks in project 'Work' due this week"
+- `project_id` (string, optional): Filter tasks by project ID
+- `section_id` (string, optional): Filter tasks by section ID
+- `label` (string, optional): Filter tasks by label name
+- `filter` (string, optional): Natural language filter like 'today', 'tomorrow', 'next week', 'priority 1', 'overdue'
+- `lang` (string, optional): IETF language tag defining what language filter is written in
+- `ids` (array of strings, optional): Array of specific task IDs to retrieve. Useful when an LLM has previously interacted with certain tasks and wants to retrieve those again.
+- `priority` (number, optional): Filter by priority level (1-4). Very useful for an LLM to retrieve high-priority or urgent tasks. *Not part of the base Todoist API.*
+- `limit` (number, optional): Maximum number of tasks to return (client-side filtering), default 10. Prevents an LLM from being overwhelmed if there are many matching tasks. The LLM can increment the limit if needed. *Not part of the base Todoist API.*
 
 ### todoist_update_task
 
-Update existing tasks using natural language search:
+Update one or more tasks in Todoist with full parameter support.
 
-* Find tasks by partial name match
-* Update any task attribute (content, description, due date, priority, project, section)
-* Example: "Move meeting task to project 'Work' section 'In Progress'"
+Single task:
 
-### todoist_move_task
+- `task_id` (string, preferred): ID of the task to update
+- `task_name` (string): Name/content of the task to search for (if ID not provided). Allows flexibly identifying tasks, as the exact ID may not always be available to an LLM, but the task name is more likely known.
+- Rest of parameters same as todoist_create_task
 
-Move tasks between projects and sections:
+Batch tasks:
 
-* Find tasks by name
-* Optional: project_id, section_id
-* Example: "Move task 'Documentation' to section 'Done'"
-
-### todoist_complete_task
-
-Mark tasks as complete using natural language search:
-
-* Find tasks by partial name match
-* Confirm completion status
-* Example: "Mark the documentation task as complete"
+- `tasks` (array, required): Array of task objects to update, each containing:
+  - `task_id` (string, preferred): ID of the task to update  
+  - `task_name` (string): Name/content of the task to search for (if ID not provided)
+  - Rest of parameters same as todoist_create_task
+- Allows updating multiple tasks in a single request, improving efficiency for LLM interactions.
 
 ### todoist_delete_task
 
-Remove tasks using natural language search:
+Delete one or more tasks from Todoist.
 
-* Find and delete tasks by name
-* Confirmation messages
-* Example: "Delete the PR review task"
+Single task:
 
-## Label Management Tools
+- `task_id` (string, preferred): ID of the task to delete
+- `task_name` (string): Name/content of the task to search for and delete (if ID not provided). Allows flexibly identifying tasks.
+
+Batch tasks:
+
+- `tasks` (array, required): Array of task objects to delete, each containing:
+  - `task_id` (string, preferred): ID of the task to delete
+  - `task_name` (string): Name/content of the task to search for and delete (if ID not provided)  
+- Allows deleting multiple tasks in a single request.
+
+### todoist_complete_task
+
+Mark one or more tasks as complete in Todoist.
+
+Single task:
+
+- `task_id` (string, preferred): ID of the task to complete
+- `task_name` (string): Name/content of the task to search for and complete (if ID not provided). Allows flexibly identifying tasks.
+
+Batch tasks:
+
+- `tasks` (array, required): Array of task objects to mark as complete, each containing:
+  - `task_id` (string, preferred): ID of the task to complete
+  - `task_name` (string): Name/content of the task to search for and complete (if ID not provided)
+- Allows completing multiple tasks in a single request.
+
+**Batch Operation Responses**
+For batch task creation, update, deletion and completion requests, the response will contain:
+
+- `summary` field with the count of total, succeeded, and failed operations
+- `results` array with the detailed outcome for each individual task
+
+This allows an LLM to efficiently process multiple tasks while still being able to understand and respond to the result of each one.
+
+**Robust Error Handling**
+All task tools have extensive error handling:
+
+- For single task operations, if the request fails, the response content will contain a clear error message that an LLM can process and respond to
+- For batch operations, the `results` array will indicate which specific tasks failed and provide an error message for each failure
+
+This error handling allows an LLM to gracefully handle failures, retry requests, or modify its approach based on the specific errors.
+
+## Label Tools
 
 ### todoist_get_personal_labels
 
-Get all personal labels:
-
-* Lists all labels with their IDs and attributes
-* Example: "Show all my labels"
+Get all personal labels from Todoist.
 
 ### todoist_create_personal_label
 
-Create new personal labels:
+Create a new personal label in Todoist.
 
-* Required: name
-* Optional: color, order, is_favorite
-* Example: "Create label 'Important' with color red"
+- `name` (string, required): Name of the label
+- `color` (string, optional): Color of the label. Allowed values: berry_red, red, orange, yellow, olive_green, lime_green, green, mint_green, teal, sky_blue, light_blue, blue, grape, violet, lavender, magenta, salmon, charcoal, grey, taupe
+- `order` (number, optional): Order of the label
+- `is_favorite` (boolean, optional): Whether the label is a favorite
 
 ### todoist_get_personal_label
 
-Get a specific personal label:
+Get a personal label by ID.
 
-* Required: label_id
-* Returns detailed information about a specific label
-* Example: "Show details of label 'Important'"
+- `label_id` (string, required): ID of the label to retrieve
 
 ### todoist_update_personal_label
 
-Update existing personal labels:
+Update an existing personal label in Todoist.
 
-* Required: label_id
-* Optional: name, color, order, is_favorite
-* Example: "Update label 'Important' to color blue"
+- `label_id` (string, required): ID of the label to update
+- `name` (string, optional): New name for the label
+- `color` (string, optional): New color for the label. Allowed values: berry_red, red, orange, yellow, olive_green, lime_green, green, mint_green, teal, sky_blue, light_blue, blue, grape, violet, lavender, magenta, salmon, charcoal, grey, taupe
+- `order` (number, optional): New order for the label
+- `is_favorite` (boolean, optional): Whether the label is a favorite
 
 ### todoist_delete_personal_label
 
-Delete a personal label:
+Delete a personal label from Todoist.
 
-* Required: label_id
-* Example: "Delete label 'Obsolete'"
+- `label_id` (string, required): ID of the label to delete  
 
 ### todoist_update_task_labels
 
-Update the labels of a task:
+Update the labels of a task in Todoist.
 
-* Required: task_name, labels (array of label names)
-* Example: "Add labels 'Important' and 'Urgent' to task 'Review PR'"
-
-## Parameter Precedence and Edge Cases
-
-### Due Date Parameter Precedence
-
-When creating or updating tasks, Todoist API has a specific precedence order when multiple due date parameters are provided simultaneously:
-
-* When both `due_date` and `due_string` are provided, the API will prioritize the `due_date` parameter (the exact date in YYYY-MM-DD format).
-* More specific date formats take precedence over natural language descriptions.
-* The API does not reject requests with conflicting due date parameters but silently chooses the highest precedence parameter.
-
-For best results and predictable behavior:
-* Use only one due date parameter per request (`due_string`, `due_date`, or `due_datetime`).
-* When using batch operations, ensure each task in the batch has consistent parameter usage.
-
-### Batch Operations
-
-All task tools support both single operations and batch operations through the `tasks` array parameter. When using batch operations:
-
-* Empty arrays will be rejected with appropriate error messages.
-* Operations continue processing even if some individual items fail.
-* Results include detailed success/failure information for each item in the batch.
+- `task_name` (string, required): Name/content of the task to update labels for
+- `labels` (array of strings, required): Array of label names to set for the task

@@ -1,10 +1,8 @@
-[[td_logo-4f2a90df.svg]][1]
-
 # Overview
 
 This is the official documentation for Todoist REST API. Our original API, named [Sync API][8], provides an easy way to deal with full and partial syncs, but it's not so simple for individual calls. Our REST API aims to provide developers a simple way to consume the most basic features of Todoist API.
 
-#### Request and response format
+## Request and response format
 
 API endpoints accept arguments either as url-encoded values for non-POST requests or as json-encoded objects encoded in POST request body with a `Content-Type: application/json` header.
 
