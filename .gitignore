@@ -17,6 +17,7 @@ project-resources/
 .idea/
 .npmignore
 
+
 # Logs
 *.log
 npm-debug.log*
