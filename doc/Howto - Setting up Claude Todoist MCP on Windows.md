@@ -37,7 +37,7 @@ This guide covers setting up the Todoist Model Context Protocol (MCP) server on 
 
 From CMD as **admin**:
 
-   ```cmd
+   ```bash
    winget install Anthropic.Claude  
    ```
 
@@ -47,7 +47,7 @@ Or download manually from [claude.ai/download](https://claude.ai/download)
 
 From CMD as **admin**:
 
-   ```cmd
+   ``` bash
    winget install OpenJS.NodeJS
    ```
 
@@ -55,14 +55,14 @@ From CMD as **admin**:
 
 1. Log in to your Todoist account
 2. Go to Settings → Integrations  
-3. Copy your API token under the "Developer" section
+3. Find and Copy your API token under the "Developer" section
 
 ### 4a. Easy Install with Smithery
 
 1. Open Command Prompt or PowerShell
 2. Run the following command:
 
-   ```cmd
+   ```bash
    npx -y @smithery/cli@latest install @Chrusic/todoist-mcp-server-extended --client claude
    ```
 
@@ -74,7 +74,7 @@ That's it! Smithery will automatically install the MCP server and configure Clau
 
 1. Install Git from CMD as **admin**:
 
-   ```cmd
+   ```bash
    winget install Git.Git
    ```
 
@@ -84,20 +84,20 @@ That's it! Smithery will automatically install the MCP server and configure Clau
    b. Navigate to your desired director for storing the todoist repo  *(Example: `cd C:/git/YourRepoFolder`)*
    c. Clone the repository:
 
-      ```cmd
+      ```bash
       git clone https://github.com/Chrusic/todoist-mcp-server-extended.git
       cd todoist-mcp-server-extended
       ```
 
    d. Install dependencies:
 
-      ```cmd
+      ```bash
       npm install
       ```
 
    e. Build the server:
 
-      ```cmd  
+      ```bash  
       npm run build
       ```
 

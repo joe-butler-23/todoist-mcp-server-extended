@@ -1,7 +1,7 @@
 {
-  "name": "todoist-mcp-server-extended",
-  "version": "0.2.0",
-  "description": "Extended Todoist MCP server with additional capabilities including label management",
+  "name": "@chrusic/todoist-mcp-server-extended",
+  "version": "0.2.3",
+  "description": "Todoist MCP Server Extended, made to be efficient to use for an LLM's like Claude.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -43,5 +43,8 @@
     "@types/node": "^22.10.2",
     "shx": "^0.3.4",
     "typescript": "^5.7.2"
+  },
+  "directories": {
+    "doc": "doc"
   }
 }
