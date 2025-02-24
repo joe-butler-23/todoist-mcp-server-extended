@@ -117,51 +117,102 @@ const CREATE_SECTION_TOOL: Tool = {
 };
 
 // General Task tools
-const MOVE_TASK_TOOL: Tool = {
-  name: "todoist_move_task",
-  description: "Move a task to a different section and/or project",
-  inputSchema: {
-    type: "object",
-    properties: {
-      task_name: {
-        type: "string",
-        description: "Name/content of the task to move"
-      },
-      project_id: {
-        type: "string",
-        description: "ID of the project to move the task to (optional)"
-      },
-      section_id: {
-        type: "string",
-        description: "ID of the section to move the task to (optional)"
-      }
-    },
-    required: ["task_name"]
-  }
-};
 
 const CREATE_TASK_TOOL: Tool = {
   name: "todoist_create_task",
-  description: "Create a new task in Todoist with optional description, due date, and priority",
+  description: "Create one or more tasks in Todoist with full parameter support",
   inputSchema: {
     type: "object",
     properties: {
+      tasks: {
+        type: "array",
+        description: "Array of tasks to create (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            content: {
+              type: "string",
+              description: "The content/title of the task (required)"
+            },
+            description: {
+              type: "string",
+              description: "Detailed description of the task (optional)"
+            },
+            project_id: {
+              type: "string",
+              description: "ID of the project to add the task to (optional)"
+            },
+            section_id: {
+              type: "string",
+              description: "ID of the section to add the task to (optional)"
+            },
+            parent_id: {
+              type: "string",
+              description: "ID of the parent task for subtasks (optional)"
+            },
+            order: {
+              type: "number",
+              description: "Position in the project or parent task (optional)"
+            },
+            labels: {
+              type: "array",
+              items: { type: "string" },
+              description: "Array of label names to apply to the task (optional)"
+            },
+            priority: {
+              type: "number",
+              description: "Task priority from 1 (normal) to 4 (urgent) (optional)",
+              enum: [1, 2, 3, 4]
+            },
+            due_string: {
+              type: "string",
+              description: "Natural language due date like 'tomorrow', 'next Monday' (optional)"
+            },
+            due_date: {
+              type: "string",
+              description: "Due date in YYYY-MM-DD format (optional)"
+            },
+            due_datetime: {
+              type: "string",
+              description: "Due date and time in RFC3339 format (optional)"
+            },
+            due_lang: {
+              type: "string",
+              description: "2-letter language code for due date parsing (optional)"
+            },
+            assignee_id: {
+              type: "string",
+              description: "User ID to assign the task to (optional)"
+            },
+            duration: {
+              type: "number",
+              description: "The duration amount of the task (optional)"
+            },
+            duration_unit: {
+              type: "string",
+              description: "The duration unit ('minute' or 'day') (optional)",
+              enum: ["minute", "day"]
+            },
+            deadline_date: {
+              type: "string", 
+              description: "Deadline date in YYYY-MM-DD format (optional)"
+            },
+            deadline_lang: {
+              type: "string",
+              description: "2-letter language code for deadline parsing (optional)"
+            }
+          },
+          required: ["content"]
+        }
+      },
+      // For backward compatibility - single task parameters
       content: {
         type: "string",
-        description: "The content/title of the task"
+        description: "The content/title of the task (for single task creation)"
       },
       description: {
         type: "string",
         description: "Detailed description of the task (optional)"
-      },
-      due_string: {
-        type: "string",
-        description: "Natural language due date like 'tomorrow', 'next Monday', 'Jan 23' (optional)"
-      },
-      priority: {
-        type: "number",
-        description: "Task priority from 1 (normal) to 4 (urgent) (optional)",
-        enum: [1, 2, 3, 4]
       },
       project_id: {
         type: "string",
@@ -170,9 +221,63 @@ const CREATE_TASK_TOOL: Tool = {
       section_id: {
         type: "string",
         description: "ID of the section to add the task to (optional)"
+      },
+      parent_id: {
+        type: "string",
+        description: "ID of the parent task for subtasks (optional)"
+      },
+      order: {
+        type: "number",
+        description: "Position in the project or parent task (optional)"
+      },
+      labels: {
+        type: "array",
+        items: { type: "string" },
+        description: "Array of label names to apply to the task (optional)"
+      },
+      priority: {
+        type: "number",
+        description: "Task priority from 1 (normal) to 4 (urgent) (optional)",
+        enum: [1, 2, 3, 4]
+      },
+      due_string: {
+        type: "string",
+        description: "Natural language due date like 'tomorrow', 'next Monday' (optional)"
+      },
+      due_date: {
+        type: "string",
+        description: "Due date in YYYY-MM-DD format (optional)"
+      },
+      due_datetime: {
+        type: "string",
+        description: "Due date and time in RFC3339 format (optional)"
+      },
+      due_lang: {
+        type: "string",
+        description: "2-letter language code for due date parsing (optional)"
+      },
+      assignee_id: {
+        type: "string",
+        description: "User ID to assign the task to (optional)"
+      },
+      duration: {
+        type: "number",
+        description: "The duration amount of the task (optional)"
+      },
+      duration_unit: {
+        type: "string",
+        description: "The duration unit ('minute' or 'day') (optional)",
+        enum: ["minute", "day"]
+      },
+      deadline_date: {
+        type: "string", 
+        description: "Deadline date in YYYY-MM-DD format (optional)"
+      },
+      deadline_lang: {
+        type: "string",
+        description: "2-letter language code for deadline parsing (optional)"
       }
-    },
-    required: ["content"]
+    }
   }
 };
 
@@ -223,13 +328,102 @@ const GET_TASKS_TOOL: Tool = {
 
 const UPDATE_TASK_TOOL: Tool = {
   name: "todoist_update_task",
-  description: "Update an existing task in Todoist by searching for it by name and then updating it",
+  description: "Update one or more tasks in Todoist with full parameter support",
   inputSchema: {
     type: "object",
     properties: {
+      tasks: {
+        type: "array",
+        description: "Array of tasks to update (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            task_id: {
+              type: "string",
+              description: "ID of the task to update (preferred)"
+            },
+            task_name: {
+              type: "string",
+              description: "Name/content of the task to search for (if ID not provided)"
+            },
+            content: {
+              type: "string",
+              description: "New content/title for the task (optional)"
+            },
+            description: {
+              type: "string",
+              description: "New description for the task (optional)"
+            },
+            project_id: {
+              type: "string",
+              description: "Move task to this project ID (optional)"
+            },
+            section_id: {
+              type: "string",
+              description: "Move task to this section ID (optional)"
+            },
+            labels: {
+              type: "array",
+              items: { type: "string" },
+              description: "New array of label names for the task (optional)"
+            },
+            priority: {
+              type: "number",
+              description: "New priority level from 1 (normal) to 4 (urgent) (optional)",
+              enum: [1, 2, 3, 4]
+            },
+            due_string: {
+              type: "string",
+              description: "New due date in natural language (optional)"
+            },
+            due_date: {
+              type: "string",
+              description: "New due date in YYYY-MM-DD format (optional)"
+            },
+            due_datetime: {
+              type: "string",
+              description: "New due date and time in RFC3339 format (optional)"
+            },
+            due_lang: {
+              type: "string",
+              description: "2-letter language code for due date parsing (optional)"
+            },
+            assignee_id: {
+              type: "string",
+              description: "New user ID to assign the task to (optional)"
+            },
+            duration: {
+              type: "number",
+              description: "New duration amount of the task (optional)"
+            },
+            duration_unit: {
+              type: "string",
+              description: "New duration unit ('minute' or 'day') (optional)",
+              enum: ["minute", "day"]
+            },
+            deadline_date: {
+              type: "string", 
+              description: "New deadline date in YYYY-MM-DD format (optional)"
+            },
+            deadline_lang: {
+              type: "string",
+              description: "2-letter language code for deadline parsing (optional)"
+            }
+          },
+          anyOf: [
+            { required: ["task_id"] },
+            { required: ["task_name"] }
+          ]
+        }
+      },
+      // For backward compatibility - single task parameters
+      task_id: {
+        type: "string",
+        description: "ID of the task to update (preferred)"
+      },
       task_name: {
         type: "string",
-        description: "Name/content of the task to search for and update"
+        description: "Name/content of the task to search for (if ID not provided)"
       },
       content: {
         type: "string",
@@ -239,15 +433,6 @@ const UPDATE_TASK_TOOL: Tool = {
         type: "string",
         description: "New description for the task (optional)"
       },
-      due_string: {
-        type: "string",
-        description: "New due date in natural language like 'tomorrow', 'next Monday' (optional)"
-      },
-      priority: {
-        type: "number",
-        description: "New priority level from 1 (normal) to 4 (urgent) (optional)",
-        enum: [1, 2, 3, 4]
-      },
       project_id: {
         type: "string",
         description: "Move task to this project ID (optional)"
@@ -255,39 +440,150 @@ const UPDATE_TASK_TOOL: Tool = {
       section_id: {
         type: "string",
         description: "Move task to this section ID (optional)"
+      },
+      labels: {
+        type: "array",
+        items: { type: "string" },
+        description: "New array of label names for the task (optional)"
+      },
+      priority: {
+        type: "number",
+        description: "New priority level from 1 (normal) to 4 (urgent) (optional)",
+        enum: [1, 2, 3, 4]
+      },
+      due_string: {
+        type: "string",
+        description: "New due date in natural language (optional)"
+      },
+      due_date: {
+        type: "string",
+        description: "New due date in YYYY-MM-DD format (optional)"
+      },
+      due_datetime: {
+        type: "string",
+        description: "New due date and time in RFC3339 format (optional)"
+      },
+      due_lang: {
+        type: "string",
+        description: "2-letter language code for due date parsing (optional)"
+      },
+      assignee_id: {
+        type: "string",
+        description: "New user ID to assign the task to (optional)"
+      },
+      duration: {
+        type: "number",
+        description: "New duration amount of the task (optional)"
+      },
+      duration_unit: {
+        type: "string",
+        description: "New duration unit ('minute' or 'day') (optional)",
+        enum: ["minute", "day"]
+      },
+      deadline_date: {
+        type: "string", 
+        description: "New deadline date in YYYY-MM-DD format (optional)"
+      },
+      deadline_lang: {
+        type: "string",
+        description: "2-letter language code for deadline parsing (optional)"
       }
     },
-    required: ["task_name"]
+    anyOf: [
+      { required: ["tasks"] },
+      { required: ["task_id"] },
+      { required: ["task_name"] }
+    ]
   }
 };
 
 const DELETE_TASK_TOOL: Tool = {
   name: "todoist_delete_task",
-  description: "Delete a task from Todoist by searching for it by name",
+  description: "Delete one or more tasks from Todoist",
   inputSchema: {
     type: "object",
     properties: {
+      tasks: {
+        type: "array",
+        description: "Array of tasks to delete (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            task_id: {
+              type: "string",
+              description: "ID of the task to delete (preferred)"
+            },
+            task_name: {
+              type: "string",
+              description: "Name/content of the task to search for and delete (if ID not provided)"
+            }
+          },
+          anyOf: [
+            { required: ["task_id"] },
+            { required: ["task_name"] }
+          ]
+        }
+      },
+      // For backward compatibility - single task parameters
+      task_id: {
+        type: "string",
+        description: "ID of the task to delete (preferred)"
+      },
       task_name: {
         type: "string",
-        description: "Name/content of the task to search for and delete"
+        description: "Name/content of the task to search for and delete (if ID not provided)"
       }
     },
-    required: ["task_name"]
+    anyOf: [
+      { required: ["tasks"] },
+      { required: ["task_id"] },
+      { required: ["task_name"] }
+    ]
   }
 };
 
 const COMPLETE_TASK_TOOL: Tool = {
   name: "todoist_complete_task",
-  description: "Mark a task as complete by searching for it by name",
+  description: "Mark one or more tasks as complete in Todoist",
   inputSchema: {
     type: "object",
     properties: {
+      tasks: {
+        type: "array",
+        description: "Array of tasks to mark as complete (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            task_id: {
+              type: "string",
+              description: "ID of the task to complete (preferred)"
+            },
+            task_name: {
+              type: "string",
+              description: "Name/content of the task to search for and complete (if ID not provided)"
+            }
+          },
+          anyOf: [
+            { required: ["task_id"] },
+            { required: ["task_name"] }
+          ]
+        }
+      },
+      // For backward compatibility - single task parameters
+      task_id: {
+        type: "string",
+        description: "ID of the task to complete (preferred)"
+      },
       task_name: {
         type: "string",
-        description: "Name/content of the task to search for and complete"
+        description: "Name/content of the task to search for and complete (if ID not provided)"
       }
     },
-    required: ["task_name"]
+    anyOf: [
+      { required: ["tasks"] },
+      { required: ["task_id"] },
+      { required: ["task_name"] }
+    ]
   }
 };
 
@@ -441,22 +737,62 @@ if (!TODOIST_API_TOKEN) {
 // Initialize Todoist client
 const todoistClient = new TodoistApi(TODOIST_API_TOKEN);
 
-// Task TypeUards
+// Task Tools TypeUards
 
 function isCreateTaskArgs(args: unknown): args is {
-  content: string;
+  content?: string;
   description?: string;
-  due_string?: string;
-  priority?: number;
   project_id?: string;
   section_id?: string;
+  parent_id?: string;
+  order?: number;
+  labels?: string[];
+  priority?: number;
+  due_string?: string;
+  due_date?: string;
+  due_datetime?: string;
+  due_lang?: string;
+  assignee_id?: string;
+  duration?: number;
+  duration_unit?: string;
+  deadline_date?: string;
+  deadline_lang?: string;
+  tasks?: Array<{
+    content: string;
+    description?: string;
+    project_id?: string;
+    section_id?: string;
+    parent_id?: string;
+    order?: number;
+    labels?: string[];
+    priority?: number;
+    due_string?: string;
+    due_date?: string;
+    due_datetime?: string;
+    due_lang?: string;
+    assignee_id?: string;
+    duration?: number;
+    duration_unit?: string;
+    deadline_date?: string;
+    deadline_lang?: string;
+  }>;
 } {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "content" in args &&
-    typeof (args as { content: string }).content === "string"
-  );
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("tasks" in args && Array.isArray((args as any).tasks)) {
+    return (args as any).tasks.every((task: any) => 
+      typeof task === "object" && 
+      task !== null && 
+      "content" in task && 
+      typeof task.content === "string"
+    );
+  }
+  
+  // Check if it's a single task operation
+  return "content" in args && typeof (args as any).content === "string";
 }
 
 function isGetTasksArgs(args: unknown): args is {
@@ -476,44 +812,123 @@ function isGetTasksArgs(args: unknown): args is {
 }
 
 function isUpdateTaskArgs(args: unknown): args is {
-  task_name: string;
+  task_id?: string;
+  task_name?: string;
   content?: string;
   description?: string;
-  due_string?: string;
-  priority?: number;
   project_id?: string;
   section_id?: string;
+  labels?: string[];
+  priority?: number;
+  due_string?: string;
+  due_date?: string;
+  due_datetime?: string;
+  due_lang?: string;
+  assignee_id?: string;
+  duration?: number;
+  duration_unit?: string;
+  deadline_date?: string;
+  deadline_lang?: string;
+  tasks?: Array<{
+    task_id?: string;
+    task_name?: string;
+    content?: string;
+    description?: string;
+    project_id?: string;
+    section_id?: string;
+    labels?: string[];
+    priority?: number;
+    due_string?: string;
+    due_date?: string;
+    due_datetime?: string;
+    due_lang?: string;
+    assignee_id?: string;
+    duration?: number;
+    duration_unit?: string;
+    deadline_date?: string;
+    deadline_lang?: string;
+  }>;
 } {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("tasks" in args && Array.isArray((args as any).tasks)) {
+    return (args as any).tasks.every((task: any) => 
+      typeof task === "object" && 
+      task !== null && 
+      (("task_id" in task && typeof task.task_id === "string") || 
+       ("task_name" in task && typeof task.task_name === "string"))
+    );
+  }
+  
+  // Check if it's a single task operation
   return (
-    typeof args === "object" &&
-    args !== null &&
-    "task_name" in args &&
-    typeof (args as { task_name: string }).task_name === "string"
+    ("task_id" in args && typeof (args as any).task_id === "string") ||
+    ("task_name" in args && typeof (args as any).task_name === "string")
   );
 }
 
 function isDeleteTaskArgs(args: unknown): args is {
-  task_name: string;
+  task_id?: string;
+  task_name?: string;
+  tasks?: Array<{
+    task_id?: string;
+    task_name?: string;
+  }>;
 } {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("tasks" in args && Array.isArray((args as any).tasks)) {
+    return (args as any).tasks.every((task: any) => 
+      typeof task === "object" && 
+      task !== null && 
+      (("task_id" in task && typeof task.task_id === "string") || 
+       ("task_name" in task && typeof task.task_name === "string"))
+    );
+  }
+  
+  // Check if it's a single task operation
   return (
-    typeof args === "object" &&
-    args !== null &&
-    "task_name" in args &&
-    typeof (args as { task_name: string }).task_name === "string"
+    ("task_id" in args && typeof (args as any).task_id === "string") ||
+    ("task_name" in args && typeof (args as any).task_name === "string")
   );
 }
 
 function isCompleteTaskArgs(args: unknown): args is {
-  task_name: string;
+  task_id?: string;
+  task_name?: string;
+  tasks?: Array<{
+    task_id?: string;
+    task_name?: string;
+  }>;
 } {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("tasks" in args && Array.isArray((args as any).tasks)) {
+    return (args as any).tasks.every((task: any) => 
+      typeof task === "object" && 
+      task !== null && 
+      (("task_id" in task && typeof task.task_id === "string") || 
+       ("task_name" in task && typeof task.task_name === "string"))
+    );
+  }
+  
+  // Check if it's a single task operation
   return (
-    typeof args === "object" &&
-    args !== null &&
-    "task_name" in args &&
-    typeof (args as { task_name: string }).task_name === "string"
+    ("task_id" in args && typeof (args as any).task_id === "string") ||
+    ("task_name" in args && typeof (args as any).task_name === "string")
   );
 }
-// Project TypeGuards
+
+// Project Tools TypeGuards
 
 function isGetProjectsArgs(args: unknown): args is {} {
   return typeof args === "object" && args !== null;
@@ -573,20 +988,7 @@ function isCreateSectionArgs(args: unknown): args is {
   );
 }
 
-function isMoveTaskArgs(args: unknown): args is {
-  task_name: string;
-  project_id?: string;
-  section_id?: string;
-} {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "task_name" in args &&
-    typeof (args as { task_name: string }).task_name === "string"
-  );
-}
-
-// Label Management TypeGuards
+// Label Tools TypeGuards
 
 function isGetPersonalLabelsArgs(args: unknown): args is {} {
   return typeof args === "object" && args !== null;
@@ -670,7 +1072,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     UPDATE_PROJECT_TOOL,
     GET_PROJECT_SECTIONS_TOOL,
     CREATE_SECTION_TOOL,
-    MOVE_TASK_TOOL,
     GET_PERSONAL_LABELS_TOOL,
     CREATE_PERSONAL_LABEL_TOOL,
     GET_PERSONAL_LABEL_TOOL,
@@ -771,63 +1172,145 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     }
 
-    if (name === "todoist_move_task") {
-      if (!isMoveTaskArgs(args)) {
-        throw new Error("Invalid arguments for todoist_move_task");
-      }
-
-      // First, search for the task
-      const tasks = await todoistClient.getTasks();
-      const matchingTask = tasks.find(task =>
-        task.content.toLowerCase().includes(args.task_name.toLowerCase())
-      );
-
-      if (!matchingTask) {
-        return {
-          content: [{
-            type: "text",
-            text: `Could not find a task matching "${args.task_name}"`
-          }],
-          isError: true,
-        };
-      }
-
-      // Build update data
-      const updateData: any = {};
-      if (args.project_id) updateData.projectId = args.project_id;
-      if (args.section_id) updateData.sectionId = args.section_id;
-
-      const updatedTask = await todoistClient.updateTask(matchingTask.id, updateData);
-
-      return {
-        content: [{
-          type: "text",
-          text: `Task "${matchingTask.content}" moved successfully:\n${JSON.stringify(updatedTask, null, 2)}`
-        }],
-        isError: false,
-      };
-    }
-    // Task Handlers
+    // Task Handlers    
 
     if (name === "todoist_create_task") {
       if (!isCreateTaskArgs(args)) {
         throw new Error("Invalid arguments for todoist_create_task");
       }
-      const task = await todoistClient.addTask({
-        content: args.content,
-        description: args.description,
-        dueString: args.due_string,
-        priority: args.priority,
-        projectId: args.project_id,
-        sectionId: args.section_id
-      });
-      return {
-        content: [{
-          type: "text",
-          text: `Task created:\nTitle: ${task.content}${task.description ? `\nDescription: ${task.description}` : ''}${task.due ? `\nDue: ${task.due.string}` : ''}${task.priority ? `\nPriority: ${task.priority}` : ''}${task.projectId ? `\nProject ID: ${task.projectId}` : ''}${task.sectionId ? `\nSection ID: ${task.sectionId}` : ''}`
-        }],
-        isError: false,
-      };
+    
+      try {
+        // Handle batch task creation
+        if (args.tasks && args.tasks.length > 0) {
+          const results = await Promise.all(args.tasks.map(async (taskData) => {
+            try {
+              // Map our parameters to the Todoist API format
+              const apiParams: any = {
+                content: taskData.content,
+                description: taskData.description,
+                projectId: taskData.project_id,
+                sectionId: taskData.section_id,
+                parentId: taskData.parent_id,
+                order: taskData.order,
+                labels: taskData.labels,
+                priority: taskData.priority,
+                dueString: taskData.due_string,
+                dueDate: taskData.due_date,
+                dueDateTime: taskData.due_datetime,
+                dueLang: taskData.due_lang,
+                assigneeId: taskData.assignee_id,
+              };
+              
+              // Handle duration parameters
+              if (taskData.duration && taskData.duration_unit) {
+                apiParams.duration = {
+                  amount: taskData.duration,
+                  unit: taskData.duration_unit
+                };
+              }
+              
+              // Handle deadline parameters
+              if (taskData.deadline_date) {
+                apiParams.deadlineDate = taskData.deadline_date;
+              }
+              if (taskData.deadline_lang) {
+                apiParams.deadlineLang = taskData.deadline_lang;
+              }
+              
+              const task = await todoistClient.addTask(apiParams);
+              return {
+                success: true,
+                task
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                taskData
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.tasks.length,
+                summary: {
+                  total: args.tasks.length,
+                  succeeded: successCount,
+                  failed: args.tasks.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.tasks.length
+          };
+        } 
+        // Handle single task creation
+        else if (args.content) {
+          // Map our parameters to the Todoist API format
+          const apiParams: any = {
+            content: args.content,
+            description: args.description,
+            projectId: args.project_id,
+            sectionId: args.section_id,
+            parentId: args.parent_id,
+            order: args.order,
+            labels: args.labels,
+            priority: args.priority,
+            dueString: args.due_string,
+            dueDate: args.due_date,
+            dueDateTime: args.due_datetime,
+            dueLang: args.due_lang,
+            assigneeId: args.assignee_id,
+          };
+          
+          // Handle duration parameters
+          if (args.duration && args.duration_unit) {
+            apiParams.duration = {
+              amount: args.duration,
+              unit: args.duration_unit
+            };
+          }
+          
+          // Handle deadline parameters
+          if (args.deadline_date) {
+            apiParams.deadlineDate = args.deadline_date;
+          }
+          if (args.deadline_lang) {
+            apiParams.deadlineLang = args.deadline_lang;
+          }
+          
+          const task = await todoistClient.addTask(apiParams);
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                task
+              }, null, 2)
+            }],
+            isError: false
+          };
+        } else {
+          throw new Error("Either 'content' or 'tasks' must be provided");
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
     }
 
     if (name === "todoist_get_tasks") {
@@ -911,107 +1394,474 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (!isUpdateTaskArgs(args)) {
         throw new Error("Invalid arguments for todoist_update_task");
       }
-
-      // First, search for the task
-      const tasks = await todoistClient.getTasks();
-      const matchingTask = tasks.find(task =>
-        task.content.toLowerCase().includes(args.task_name.toLowerCase())
-      );
-
-      if (!matchingTask) {
+    
+      try {
+        // Process batch update
+        if (args.tasks && args.tasks.length > 0) {
+          // Get all tasks in one API call to efficiently search by name
+          const allTasks = await todoistClient.getTasks();
+          
+          const results = await Promise.all(args.tasks.map(async (taskData) => {
+            try {
+              // Determine task ID - either directly provided or find by name
+              let taskId = taskData.task_id;
+              
+              if (!taskId && taskData.task_name) {
+                const matchingTask = allTasks.find(task => 
+                  task.content.toLowerCase().includes(taskData.task_name!.toLowerCase())
+                );
+                
+                if (!matchingTask) {
+                  return {
+                    success: false,
+                    error: `Task not found: ${taskData.task_name}`,
+                    taskData
+                  };
+                }
+                
+                taskId = matchingTask.id;
+              }
+              
+              if (!taskId) {
+                return {
+                  success: false,
+                  error: "Either task_id or task_name must be provided",
+                  taskData
+                };
+              }
+    
+              // Build update parameters
+              const updateData: any = {};
+              if (taskData.content !== undefined) updateData.content = taskData.content;
+              if (taskData.description !== undefined) updateData.description = taskData.description;
+              if (taskData.project_id !== undefined) updateData.projectId = taskData.project_id;
+              if (taskData.section_id !== undefined) updateData.sectionId = taskData.section_id;
+              if (taskData.labels !== undefined) updateData.labels = taskData.labels;
+              if (taskData.priority !== undefined) updateData.priority = taskData.priority;
+              if (taskData.due_string !== undefined) updateData.dueString = taskData.due_string;
+              if (taskData.due_date !== undefined) updateData.dueDate = taskData.due_date;
+              if (taskData.due_datetime !== undefined) updateData.dueDateTime = taskData.due_datetime;
+              if (taskData.due_lang !== undefined) updateData.dueLang = taskData.due_lang;
+              if (taskData.assignee_id !== undefined) updateData.assigneeId = taskData.assignee_id;
+              
+              // Handle duration
+              if (taskData.duration !== undefined && taskData.duration_unit !== undefined) {
+                updateData.duration = {
+                  amount: taskData.duration,
+                  unit: taskData.duration_unit
+                };
+              } else if (taskData.duration === null) {
+                updateData.duration = null; // Remove duration
+              }
+              
+              // Handle deadline
+              if (taskData.deadline_date !== undefined) {
+                updateData.deadlineDate = taskData.deadline_date;
+              }
+              if (taskData.deadline_lang !== undefined) {
+                updateData.deadlineLang = taskData.deadline_lang;
+              }
+    
+              // Perform the update
+              await todoistClient.updateTask(taskId, updateData);
+              
+              return {
+                success: true,
+                taskId: taskId,
+                updated: updateData
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                taskData
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.tasks.length,
+                summary: {
+                  total: args.tasks.length,
+                  succeeded: successCount,
+                  failed: args.tasks.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.tasks.length
+          };
+        }
+        // Process single task update
+        else {
+          // Determine task ID - either directly provided or find by name
+          let taskId = args.task_id;
+          
+          if (!taskId && args.task_name) {
+            const tasks = await todoistClient.getTasks();
+            const matchingTask = tasks.find(task => 
+              task.content.toLowerCase().includes(args.task_name!.toLowerCase())
+            );
+            
+            if (!matchingTask) {
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: `Task not found: ${args.task_name}`
+                  }, null, 2)
+                }],
+                isError: true
+              };
+            }
+            
+            taskId = matchingTask.id;
+          }
+          
+          if (!taskId) {
+            throw new Error("Either task_id or task_name must be provided");
+          }
+    
+          // Build update parameters
+          const updateData: any = {};
+          if (args.content !== undefined) updateData.content = args.content;
+          if (args.description !== undefined) updateData.description = args.description;
+          if (args.project_id !== undefined) updateData.projectId = args.project_id;
+          if (args.section_id !== undefined) updateData.sectionId = args.section_id;
+          if (args.labels !== undefined) updateData.labels = args.labels;
+          if (args.priority !== undefined) updateData.priority = args.priority;
+          if (args.due_string !== undefined) updateData.dueString = args.due_string;
+          if (args.due_date !== undefined) updateData.dueDate = args.due_date;
+          if (args.due_datetime !== undefined) updateData.dueDateTime = args.due_datetime;
+          if (args.due_lang !== undefined) updateData.dueLang = args.due_lang;
+          if (args.assignee_id !== undefined) updateData.assigneeId = args.assignee_id;
+          
+          // Handle duration
+          if (args.duration !== undefined && args.duration_unit !== undefined) {
+            updateData.duration = {
+              amount: args.duration,
+              unit: args.duration_unit
+            };
+          } else if (args.duration === null) {
+            updateData.duration = null; // Remove duration
+          }
+          
+          // Handle deadline
+          if (args.deadline_date !== undefined) {
+            updateData.deadlineDate = args.deadline_date;
+          }
+          if (args.deadline_lang !== undefined) {
+            updateData.deadlineLang = args.deadline_lang;
+          }
+    
+          // Perform the update
+          const updatedTask = await todoistClient.updateTask(taskId, updateData);
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                task: updatedTask
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
         return {
           content: [{
             type: "text",
-            text: `Could not find a task matching "${args.task_name}"`
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
           }],
-          isError: true,
+          isError: true
         };
       }
-
-      // Build update data
-      const updateData: any = {};
-      if (args.content) updateData.content = args.content;
-      if (args.description) updateData.description = args.description;
-      if (args.due_string) updateData.dueString = args.due_string;
-      if (args.priority) updateData.priority = args.priority;
-      if (args.project_id) updateData.projectId = args.project_id;
-      if (args.section_id) updateData.sectionId = args.section_id;
-
-      const updatedTask = await todoistClient.updateTask(matchingTask.id, updateData);
-
-      return {
-        content: [{
-          type: "text",
-          text: `Task "${matchingTask.content}" updated:\n${JSON.stringify(updatedTask, null, 2)}`
-        }],
-        isError: false,
-      };
     }
 
     if (name === "todoist_delete_task") {
       if (!isDeleteTaskArgs(args)) {
         throw new Error("Invalid arguments for todoist_delete_task");
       }
-
-      // First, search for the task
-      const tasks = await todoistClient.getTasks();
-      const matchingTask = tasks.find(task =>
-        task.content.toLowerCase().includes(args.task_name.toLowerCase())
-      );
-
-      if (!matchingTask) {
+    
+      try {
+        // Process batch deletion
+        if (args.tasks && args.tasks.length > 0) {
+          // Get all tasks in one API call to efficiently search by name
+          const allTasks = await todoistClient.getTasks();
+          
+          const results = await Promise.all(args.tasks.map(async (taskData) => {
+            try {
+              // Determine task ID - either directly provided or find by name
+              let taskId = taskData.task_id;
+              let taskContent = '';
+              
+              if (!taskId && taskData.task_name) {
+                const matchingTask = allTasks.find(task => 
+                  task.content.toLowerCase().includes(taskData.task_name!.toLowerCase())
+                );
+                
+                if (!matchingTask) {
+                  return {
+                    success: false,
+                    error: `Task not found: ${taskData.task_name}`,
+                    task_name: taskData.task_name
+                  };
+                }
+                
+                taskId = matchingTask.id;
+                taskContent = matchingTask.content;
+              }
+              
+              if (!taskId) {
+                return {
+                  success: false,
+                  error: "Either task_id or task_name must be provided",
+                  taskData
+                };
+              }
+    
+              // Delete the task
+              await todoistClient.deleteTask(taskId);
+              
+              return {
+                success: true,
+                task_id: taskId,
+                content: taskContent || `Task ID: ${taskId}`
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                taskData
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.tasks.length,
+                summary: {
+                  total: args.tasks.length,
+                  succeeded: successCount,
+                  failed: args.tasks.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.tasks.length
+          };
+        }
+        // Process single task deletion
+        else {
+          // Determine task ID - either directly provided or find by name
+          let taskId = args.task_id;
+          let taskContent = '';
+          
+          if (!taskId && args.task_name) {
+            const tasks = await todoistClient.getTasks();
+            const matchingTask = tasks.find(task => 
+              task.content.toLowerCase().includes(args.task_name!.toLowerCase())
+            );
+            
+            if (!matchingTask) {
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: `Task not found: ${args.task_name}`
+                  }, null, 2)
+                }],
+                isError: true
+              };
+            }
+            
+            taskId = matchingTask.id;
+            taskContent = matchingTask.content;
+          }
+          
+          if (!taskId) {
+            throw new Error("Either task_id or task_name must be provided");
+          }
+    
+          // Delete the task
+          await todoistClient.deleteTask(taskId);
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                message: `Successfully deleted task${taskContent ? ': "' + taskContent + '"' : ' with ID: ' + taskId}`
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
         return {
           content: [{
             type: "text",
-            text: `Could not find a task matching "${args.task_name}"`
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
           }],
-          isError: true,
+          isError: true
         };
       }
-
-      // Delete the task
-      await todoistClient.deleteTask(matchingTask.id);
-
-      return {
-        content: [{
-          type: "text",
-          text: `Successfully deleted task: "${matchingTask.content}"`
-        }],
-        isError: false,
-      };
     }
 
     if (name === "todoist_complete_task") {
       if (!isCompleteTaskArgs(args)) {
         throw new Error("Invalid arguments for todoist_complete_task");
       }
-
-      // First, search for the task
-      const tasks = await todoistClient.getTasks();
-      const matchingTask = tasks.find(task =>
-        task.content.toLowerCase().includes(args.task_name.toLowerCase())
-      );
-
-      if (!matchingTask) {
+    
+      try {
+        // Process batch completion
+        if (args.tasks && args.tasks.length > 0) {
+          // Get all tasks in one API call to efficiently search by name
+          const allTasks = await todoistClient.getTasks();
+          
+          const results = await Promise.all(args.tasks.map(async (taskData) => {
+            try {
+              // Determine task ID - either directly provided or find by name
+              let taskId = taskData.task_id;
+              let taskContent = '';
+              
+              if (!taskId && taskData.task_name) {
+                const matchingTask = allTasks.find(task => 
+                  task.content.toLowerCase().includes(taskData.task_name!.toLowerCase())
+                );
+                
+                if (!matchingTask) {
+                  return {
+                    success: false,
+                    error: `Task not found: ${taskData.task_name}`,
+                    task_name: taskData.task_name
+                  };
+                }
+                
+                taskId = matchingTask.id;
+                taskContent = matchingTask.content;
+              }
+              
+              if (!taskId) {
+                return {
+                  success: false,
+                  error: "Either task_id or task_name must be provided",
+                  taskData
+                };
+              }
+    
+              // Complete the task
+              await todoistClient.closeTask(taskId);
+              
+              return {
+                success: true,
+                task_id: taskId,
+                content: taskContent || `Task ID: ${taskId}`
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                taskData
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.tasks.length,
+                summary: {
+                  total: args.tasks.length,
+                  succeeded: successCount,
+                  failed: args.tasks.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.tasks.length
+          };
+        }
+        // Process single task completion
+        else {
+          // Determine task ID - either directly provided or find by name
+          let taskId = args.task_id;
+          let taskContent = '';
+          
+          if (!taskId && args.task_name) {
+            const tasks = await todoistClient.getTasks();
+            const matchingTask = tasks.find(task => 
+              task.content.toLowerCase().includes(args.task_name!.toLowerCase())
+            );
+            
+            if (!matchingTask) {
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: `Task not found: ${args.task_name}`
+                  }, null, 2)
+                }],
+                isError: true
+              };
+            }
+            
+            taskId = matchingTask.id;
+            taskContent = matchingTask.content;
+          }
+          
+          if (!taskId) {
+            throw new Error("Either task_id or task_name must be provided");
+          }
+    
+          // Complete the task
+          await todoistClient.closeTask(taskId);
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                message: `Successfully completed task${taskContent ? ': "' + taskContent + '"' : ' with ID: ' + taskId}`
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
         return {
           content: [{
             type: "text",
-            text: `Could not find a task matching "${args.task_name}"`
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
           }],
-          isError: true,
+          isError: true
         };
       }
-
-      // Complete the task
-      await todoistClient.closeTask(matchingTask.id);
-
-      return {
-        content: [{
-          type: "text",
-          text: `Successfully completed task: "${matchingTask.content}"`
-        }],
-        isError: false,
-      };
     }
 
     // Label Management Handlers
