@@ -1,0 +1,13 @@
+# Ignore development related files and folders
+project-resources/      # Ignore 
+src/                    # Ignore the entire source code directory
+tsconfig.json           # Ignore TypeScript configuration
+Dockerfile.smithery     # Ignore Dockerfile for Smithery
+smithery.yaml           # Ignore Smithery configuration
+.gitignore              # Ignore .gitignore
+node_modules/           # Ignore node_modules
+package-lock.json       # Ignore package-lock.json
+*.log                   # Ignore any log files
+.env                    # Ignore environment variable files (if you have them)
+
+
