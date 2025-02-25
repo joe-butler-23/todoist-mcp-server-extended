@@ -121,10 +121,52 @@ const CREATE_PROJECT_TOOL: Tool = {
 
 const UPDATE_PROJECT_TOOL: Tool = {
   name: "todoist_update_project",
-  description: "Update an existing project in Todoist",
+  description: "Update one or more projects in Todoist",
   inputSchema: {
     type: "object",
     properties: {
+      projects: {
+        type: "array",
+        description: "Array of projects to update (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            project_id: {
+              type: "string",
+              description: "ID of the project to update (preferred)"
+            },
+            project_name: {
+              type: "string",
+              description: "Name of the project to update (if ID not provided)"
+            },
+            name: {
+              type: "string",
+              description: "New name for the project (optional)"
+            },
+            color: {
+              type: "string",
+              description: "New color for the project (optional)",
+              enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", 
+                     "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", 
+                     "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+            },
+            favorite: {
+              type: "boolean",
+              description: "Whether the project should be a favorite (optional)"
+            },
+            view_style: {
+              type: "string",
+              description: "View style of the project (optional)",
+              enum: ["list", "board"]
+            }
+          },
+          anyOf: [
+            { required: ["project_id"] },
+            { required: ["project_name"] }
+          ]
+        }
+      },
+      // For backward compatibility - single project parameters
       project_id: {
         type: "string",
         description: "ID of the project to update"
@@ -136,14 +178,24 @@ const UPDATE_PROJECT_TOOL: Tool = {
       color: {
         type: "string",
         description: "New color for the project (optional)",
-        enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+        enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", 
+               "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", 
+               "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
       },
       favorite: {
         type: "boolean",
         description: "Whether the project should be a favorite (optional)"
+      },
+      view_style: {
+        type: "string",
+        description: "View style of the project (optional)",
+        enum: ["list", "board"]
       }
     },
-    required: ["project_id"]
+    anyOf: [
+      { required: ["projects"] },
+      { required: ["project_id"] }
+    ]
   }
 };
 
@@ -1046,17 +1098,36 @@ function isCreateProjectArgs(args: unknown): args is {
 }
 
 function isUpdateProjectArgs(args: unknown): args is {
-  project_id: string;
+  project_id?: string;
   name?: string;
   color?: string;
   favorite?: boolean;
+  view_style?: string;
+  projects?: Array<{
+    project_id?: string;
+    project_name?: string;
+    name?: string;
+    color?: string;
+    favorite?: boolean;
+    view_style?: string;
+  }>;
 } {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "project_id" in args &&
-    typeof (args as { project_id: string }).project_id === "string"
-  );
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("projects" in args && Array.isArray((args as any).projects)) {
+    return (args as any).projects.every((project: any) => 
+      typeof project === "object" && 
+      project !== null && 
+      (("project_id" in project && typeof project.project_id === "string") || 
+       ("project_name" in project && typeof project.project_name === "string"))
+    );
+  }
+  
+  // Check if it's a single project operation
+  return "project_id" in args && typeof (args as any).project_id === "string";
 }
 
 function isGetProjectSectionsArgs(args: unknown): args is {
@@ -1441,18 +1512,124 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (!isUpdateProjectArgs(args)) {
         throw new Error("Invalid arguments for todoist_update_project");
       }
-      const project = await todoistClient.updateProject(args.project_id, {
-        name: args.name,
-        color: args.color,
-        isFavorite: args.favorite
-      });
-      return {
-        content: [{
-          type: "text",
-          text: `Project updated:\n${JSON.stringify(project, null, 2)}`
-        }],
-        isError: false,
-      };
+    
+      try {
+        // Handle batch project update
+        if (args.projects && args.projects.length > 0) {
+          // Get all projects to find by name if needed
+          const allProjects = await todoistClient.getProjects();
+          
+          const results = await Promise.all(args.projects.map(async (projectData) => {
+            try {
+              // Determine project ID - either directly provided or find by name
+              let projectId = projectData.project_id;
+              let projectDetails = null;
+              
+              if (!projectId && projectData.project_name) {
+                const matchingProject = allProjects.find(project => 
+                  project.name.toLowerCase().includes(projectData.project_name!.toLowerCase())
+                );
+                
+                if (!matchingProject) {
+                  return {
+                    success: false,
+                    error: `Project not found: ${projectData.project_name}`,
+                    projectData
+                  };
+                }
+                
+                projectId = matchingProject.id;
+                projectDetails = matchingProject;
+              } else if (projectId) {
+                projectDetails = allProjects.find(p => p.id === projectId);
+              }
+              
+              if (!projectId) {
+                return {
+                  success: false,
+                  error: "Either project_id or project_name must be provided",
+                  projectData
+                };
+              }
+    
+              // Build update parameters
+              const updateData: any = {};
+              if (projectData.name !== undefined) updateData.name = projectData.name;
+              if (projectData.color !== undefined) updateData.color = projectData.color;
+              if (projectData.favorite !== undefined) updateData.isFavorite = projectData.favorite;
+              if (projectData.view_style !== undefined) updateData.viewStyle = projectData.view_style;
+    
+              // Perform the update
+              const updatedProject = await todoistClient.updateProject(projectId, updateData);
+              
+              return {
+                success: true,
+                project_id: projectId,
+                original_name: projectDetails?.name || "Unknown",
+                updated: updatedProject
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                projectData
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.projects.length,
+                summary: {
+                  total: args.projects.length,
+                  succeeded: successCount,
+                  failed: args.projects.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.projects.length
+          };
+        }
+        // Process single project update (backward compatibility)
+        else {
+          // Build update data
+          const updateData: any = {};
+          if (args.name !== undefined) updateData.name = args.name;
+          if (args.color !== undefined) updateData.color = args.color;
+          if (args.favorite !== undefined) updateData.isFavorite = args.favorite;
+          if (args.view_style !== undefined) updateData.viewStyle = args.view_style;
+    
+          // Perform the update
+          const updatedProject = await todoistClient.updateProject(args.project_id!, updateData);
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                project: updatedProject
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
     }
 
     if (name === "todoist_get_project_sections") {
