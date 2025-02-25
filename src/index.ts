@@ -14,10 +14,26 @@ import { TodoistApi } from "@doist/todoist-api-typescript";
 // Project Tools
 const GET_PROJECTS_TOOL: Tool = {
   name: "todoist_get_projects",
-  description: "Get all projects from Todoist",
+  description: "Get projects with optional filtering and hierarchy information",
   inputSchema: {
     type: "object",
-    properties: {}
+    properties: {
+      project_ids: {
+        type: "array",
+        items: { type: "string" },
+        description: "Optional: Specific project IDs to retrieve"
+      },
+      include_sections: {
+        type: "boolean",
+        description: "Optional: Include sections within each project",
+        default: false
+      },
+      include_hierarchy: {
+        type: "boolean", 
+        description: "Optional: Include full parent-child relationships",
+        default: false
+      }
+    }
   }
 };
 
@@ -930,8 +946,15 @@ function isCompleteTaskArgs(args: unknown): args is {
 
 // Project Tools TypeGuards
 
-function isGetProjectsArgs(args: unknown): args is {} {
-  return typeof args === "object" && args !== null;
+function isGetProjectsArgs(args: unknown): args is {
+  project_ids?: string[];
+  include_sections?: boolean;
+  include_hierarchy?: boolean;
+} {
+  return (
+    typeof args === "object" && 
+    args !== null
+  );
 }
 
 function isCreateProjectArgs(args: unknown): args is {
@@ -1084,7 +1107,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const { name, arguments: args } = request.params;
-    // Original MCP handlers.
+    
     if (!args) {
       throw new Error("No arguments provided");
     }
@@ -1093,14 +1116,96 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (!isGetProjectsArgs(args)) {
         throw new Error("Invalid arguments for todoist_get_projects");
       }
-      const projects = await todoistClient.getProjects();
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify(projects, null, 2)
-        }],
-        isError: false,
-      };
+    
+      try {
+        // Get all projects in a single API call
+        const projects = await todoistClient.getProjects();
+        
+        // Create a response object
+        const response: any = {
+          success: true,
+          projects: projects
+        };
+    
+        // Handle specific project IDs if provided
+        if (args.project_ids && args.project_ids.length > 0) {
+          response.projects = projects.filter(project => 
+            args.project_ids!.includes(project.id)
+          );
+        }
+    
+        // Add section information if requested
+        if (args.include_sections) {
+          const projectSections = await Promise.all(
+            response.projects.map(async (project: any) => {
+              try {
+                const sections = await todoistClient.getSections(project.id);
+                return {
+                  ...project,
+                  sections: sections
+                };
+              } catch (error) {
+                return {
+                  ...project,
+                  sections: [],
+                  sections_error: error instanceof Error ? error.message : String(error)
+                };
+              }
+            })
+          );
+          response.projects = projectSections;
+        }
+    
+        // Add hierarchy information if requested
+        if (args.include_hierarchy) {
+          // Create a map for quick project lookup
+          const projectMap = new Map();
+          response.projects.forEach((project: any) => {
+            projectMap.set(project.id, {
+              ...project,
+              children: []
+            });
+          });
+    
+          // Build the hierarchy
+          const rootProjects: any[] = [];
+          response.projects.forEach((project: any) => {
+            const projectWithHierarchy = projectMap.get(project.id);
+            
+            if (project.parentId) {
+              const parent = projectMap.get(project.parentId);
+              if (parent) {
+                parent.children.push(projectWithHierarchy);
+              } else {
+                rootProjects.push(projectWithHierarchy);
+              }
+            } else {
+              rootProjects.push(projectWithHierarchy);
+            }
+          });
+    
+          response.hierarchy = rootProjects;
+        }
+    
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(response, null, 2)
+          }],
+          isError: false,
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true,
+        };
+      }
     }
 
     if (name === "todoist_create_project") {
