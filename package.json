@@ -1,6 +1,6 @@
 {
   "name": "@chrusic/todoist-mcp-server-extended",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Todoist MCP Server Extended, made to be efficient to use for an LLM's like Claude.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
