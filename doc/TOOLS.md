@@ -2,46 +2,6 @@
 
 This document describes the available tools in the Todoist MCP Server. These tools allow interacting with Todoist projects, sections, tasks, and labels.
 
-## Project Tools
-
-### todoist_get_projects
-
-Get all projects from Todoist.
-
-### todoist_create_project
-
-Create a new project in Todoist.
-
-- `name` (string, required): Name of the project
-- `parent_id` (string, optional): Parent project ID for nested projects
-- `color` (string, optional): Color of the project. Allowed values: berry_red, red, orange, yellow, olive_green, lime_green, green, mint_green, teal, sky_blue, light_blue, blue, grape, violet, lavender, magenta, salmon, charcoal, grey, taupe
-- `favorite` (boolean, optional): Whether the project is a favorite
-
-### todoist_update_project
-
-Update an existing project in Todoist.
-
-- `project_id` (string, required): ID of the project to update  
-- `name` (string, optional): New name for the project
-- `color` (string, optional): New color for the project. Allowed values: berry_red, red, orange, yellow, olive_green, lime_green, green, mint_green, teal, sky_blue, light_blue, blue, grape, violet, lavender, magenta, salmon, charcoal, grey, taupe
-- `favorite` (boolean, optional): Whether the project should be a favorite
-
-### todoist_get_project_sections
-
-Get all sections in a Todoist project.
-
-- `project_id` (string, required): ID of the project
-
-## Section Tools
-
-### todoist_create_section
-
-Create a new section in a Todoist project.  
-
-- `project_id` (string, required): ID of the project
-- `name` (string, required): Name of the section
-- `order` (number, optional): Order of the section
-
 ## Task Tools
 
 The task tools have been significantly enhanced compared to the base Todoist API to optimize for LLM usage, batch operations, and input/output handling.
@@ -151,6 +111,95 @@ All task tools have extensive error handling:
 - For batch operations, the `results` array will indicate which specific tasks failed and provide an error message for each failure
 
 This error handling allows an LLM to gracefully handle failures, retry requests, or modify its approach based on the specific errors.
+
+## Project Tools
+
+### todoist_get_projects
+
+Get projects with optional filtering and hierarchy information.
+
+- `project_ids` (array of strings, optional): Specific project IDs to retrieve
+- `include_sections` (boolean, optional, default false): Include sections within each project
+- `include_hierarchy` (boolean, optional, default false): Include full parent-child relationships
+
+### todoist_create_project
+
+Create one or more projects with support for nested hierarchies.
+
+Single project:
+
+- `name` (string, required): Name of the project
+- `parent_id` (string, optional): Parent project ID
+- `color` (string, optional): Color of the project icon (see Colors guide for options)
+- `is_favorite` (boolean, optional): Whether the project is a favorite
+- `view_style` (string, optional): View style of the project ('list' or 'board')
+
+Batch projects:
+
+- `projects` (array, required): Array of project objects to create, each containing:
+  - `name` (string, required): Name of the project
+  - `parent_id` (string, optional): Parent project ID
+  - `parent_name` (string, optional): Name of the parent project (will be created or found automatically)
+  - `color` (string, optional): Color of the project icon
+  - `is_favorite` (boolean, optional): Whether the project is a favorite
+  - `view_style` (string, optional): View style of the project ('list' or 'board') 
+  - `sections` (array of strings, optional): Sections to create within this project
+
+### todoist_update_project
+
+Update one or more projects in Todoist.
+
+Single project:
+
+- `project_id` (string, required): ID of the project to update
+- `name` (string, optional): New name for the project
+- `color` (string, optional): New color for the project icon
+- `is_favorite` (boolean, optional): Whether the project should be a favorite
+- `view_style` (string, optional): View style of the project ('list' or 'board')
+
+Batch projects:
+
+- `projects` (array, required): Array of project objects to update, each containing:
+  - `project_id` (string, preferred): ID of the project to update
+  - `project_name` (string): Name of the project to update (if ID not provided)
+  - `name` (string, optional): New name for the project
+  - `color` (string, optional): New color for the project icon 
+  - `is_favorite` (boolean, optional): Whether the project should be a favorite
+  - `view_style` (string, optional): View style of the project ('list' or 'board')
+
+### todoist_delete_project
+
+Delete one or more projects from Todoist.
+
+Single project:
+
+- `project_id` (string): ID of the project to delete
+- `project_name` (string): Name of the project to delete (if ID not provided)
+- User will be prompted to confirm deletion by project name for safety
+
+Batch projects:  
+
+- `projects` (array, required): Array of project objects to delete, each containing:
+  - `project_id` (string, preferred): ID of the project to delete
+  - `project_name` (string): Name of the project to delete (if ID not provided)
+  - User will be prompted to confirm the number of projects to be deleted for safety
+
+### todoist_get_project_sections
+
+Get all sections in a Todoist project.
+
+- `project_id` (string, required): ID of the project
+
+## Section Tools
+
+### todoist_create_section
+
+Create a new section in a Todoist project.  
+
+- `project_id` (string, required): ID of the project
+- `name` (string, required): Name of the section
+- `order` (number, optional): Order of the section
+
 
 ## Label Tools
 
