@@ -39,29 +39,83 @@ const GET_PROJECTS_TOOL: Tool = {
 
 const CREATE_PROJECT_TOOL: Tool = {
   name: "todoist_create_project",
-  description: "Create a new project in Todoist",
+  description: "Create one or more projects with support for nested hierarchies",
   inputSchema: {
     type: "object",
     properties: {
+      projects: {
+        type: "array",
+        description: "Array of projects to create (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "Name of the project"
+            },
+            parent_id: {
+              type: "string",
+              description: "Parent project ID (optional)"
+            },
+            parent_name: {
+              type: "string",
+              description: "Name of the parent project (will be created or found automatically)"
+            },
+            color: {
+              type: "string",
+              description: "Color of the project (optional)",
+              enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", 
+                     "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", 
+                     "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+            },
+            favorite: {
+              type: "boolean",
+              description: "Whether the project is a favorite (optional)"
+            },
+            view_style: {
+              type: "string",
+              description: "View style of the project (optional)",
+              enum: ["list", "board"]
+            },
+            sections: {
+              type: "array",
+              items: { type: "string" },
+              description: "Sections to create within this project (optional)"
+            }
+          },
+          required: ["name"]
+        }
+      },
+      // For backward compatibility - single project parameters
       name: {
         type: "string",
-        description: "Name of the project"
+        description: "Name of the project (for single project creation)"
       },
       parent_id: {
         type: "string",
-        description: "Parent project ID for nested projects (optional)"
+        description: "Parent project ID (optional)"
       },
       color: {
         type: "string",
         description: "Color of the project (optional)",
-        enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+        enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", 
+               "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", 
+               "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
       },
       favorite: {
         type: "boolean",
         description: "Whether the project is a favorite (optional)"
+      },
+      view_style: {
+        type: "string",
+        description: "View style of the project (optional)",
+        enum: ["list", "board"]
       }
     },
-    required: ["name"]
+    anyOf: [
+      { required: ["projects"] },
+      { required: ["name"] }
+    ]
   }
 };
 
@@ -958,17 +1012,37 @@ function isGetProjectsArgs(args: unknown): args is {
 }
 
 function isCreateProjectArgs(args: unknown): args is {
-  name: string;
+  name?: string;
   parent_id?: string;
   color?: string;
   favorite?: boolean;
+  view_style?: string;
+  projects?: Array<{
+    name: string;
+    parent_id?: string;
+    parent_name?: string;
+    color?: string;
+    favorite?: boolean;
+    view_style?: string;
+    sections?: string[];
+  }>;
 } {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "name" in args &&
-    typeof (args as { name: string }).name === "string"
-  );
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("projects" in args && Array.isArray((args as any).projects)) {
+    return (args as any).projects.every((project: any) => 
+      typeof project === "object" && 
+      project !== null && 
+      "name" in project && 
+      typeof project.name === "string"
+    );
+  }
+  
+  // Check if it's a single project operation
+  return "name" in args && typeof (args as any).name === "string";
 }
 
 function isUpdateProjectArgs(args: unknown): args is {
@@ -1107,7 +1181,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const { name, arguments: args } = request.params;
-    
+
     if (!args) {
       throw new Error("No arguments provided");
     }
@@ -1212,19 +1286,155 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (!isCreateProjectArgs(args)) {
         throw new Error("Invalid arguments for todoist_create_project");
       }
-      const project = await todoistClient.addProject({
-        name: args.name,
-        parentId: args.parent_id,
-        color: args.color,
-        isFavorite: args.favorite
-      });
-      return {
-        content: [{
-          type: "text",
-          text: `Project created:\n${JSON.stringify(project, null, 2)}`
-        }],
-        isError: false,
-      };
+    
+      try {
+        // Handle batch project creation
+        if (args.projects && args.projects.length > 0) {
+          // First get all existing projects to handle parent_name references
+          const existingProjects = await todoistClient.getProjects();
+          const projectNameToIdMap = new Map<string, string>();
+          existingProjects.forEach(project => {
+            projectNameToIdMap.set(project.name.toLowerCase(), project.id);
+          });
+          
+          // Keep track of newly created projects as well
+          const newProjectMap = new Map<string, string>();
+          
+          const results = await Promise.all(args.projects.map(async (projectData) => {
+            try {
+              // Determine parent ID from name or ID
+              let parentId = projectData.parent_id;
+              
+              if (!parentId && projectData.parent_name) {
+                // Look for parent in existing projects
+                parentId = projectNameToIdMap.get(projectData.parent_name.toLowerCase());
+                
+                // Or look in newly created projects
+                if (!parentId) {
+                  parentId = newProjectMap.get(projectData.parent_name.toLowerCase());
+                }
+                
+                if (!parentId) {
+                  return {
+                    success: false,
+                    error: `Parent project not found: ${projectData.parent_name}`,
+                    projectData
+                  };
+                }
+              }
+              
+              // Create the project
+              const projectParams: any = {
+                name: projectData.name,
+                color: projectData.color,
+                viewStyle: projectData.view_style
+              };
+              
+              if (parentId) {
+                projectParams.parentId = parentId;
+              }
+              
+              if (projectData.favorite !== undefined) {
+                projectParams.isFavorite = projectData.favorite;
+              }
+              
+              const project = await todoistClient.addProject(projectParams);
+              
+              // Save to our map for potential children
+              newProjectMap.set(project.name.toLowerCase(), project.id);
+              
+              // Create sections if specified
+              const sections: Array<any> = []; // Fix: Explicitly define the type
+              if (projectData.sections && projectData.sections.length > 0) {
+                for (const sectionName of projectData.sections) {
+                  try {
+                    const section = await todoistClient.addSection({
+                      name: sectionName,
+                      projectId: project.id
+                    });
+                    sections.push(section);
+                  } catch (error) {
+                    sections.push({
+                      name: sectionName,
+                      error: error instanceof Error ? error.message : String(error)
+                    });
+                  }
+                }
+              }
+              
+              return {
+                success: true,
+                project,
+                sections: sections.length > 0 ? sections : undefined
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                projectData
+              };
+            }
+          }));
+          
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.projects.length,
+                summary: {
+                  total: args.projects.length,
+                  succeeded: successCount,
+                  failed: args.projects.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.projects.length
+          };
+        }
+        // Handle single project creation (backward compatibility)
+        else {
+          const projectParams: any = {
+            name: args.name,
+            parentId: args.parent_id,
+            color: args.color
+          };
+          
+          if (args.view_style) {
+            projectParams.viewStyle = args.view_style;
+          }
+          
+          if (args.favorite !== undefined) {
+            projectParams.isFavorite = args.favorite;
+          }
+          
+          const project = await todoistClient.addProject(projectParams);
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                project
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
     }
 
     if (name === "todoist_update_project") {
