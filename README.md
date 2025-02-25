@@ -2,7 +2,7 @@
 
 [![smithery badge](https://smithery.ai/badge/@Chrusic/todoist-mcp-server-extended)](https://smithery.ai/server/@Chrusic/todoist-mcp-server-extended)
 
-An MCP (Model Context Protocol) server implementation that integrates Claude - or any MCP compatible LLM if you're crafty - with Todoist, enabling natural language task management via MCP tools. Tee tools in this server allows Claude to interact with your Todoist tasks, projects, sections, and labels using everyday language, while also optimized for LLM workflow efficiency.
+An MCP (Model Context Protocol) server implementation that integrates Claude - or any MCP compatible LLM if you're crafty - with Todoist, enabling natural language task management via MCP tools. The tools in this server allows Claude to interact with your Todoist tasks, projects, sections, and labels using everyday language, while also optimized for LLM workflow efficiency.
 
 ## Features Overview
 
@@ -19,7 +19,9 @@ For a complete list of available tools as well as their usage, see [tools.md](do
 
 ## Quick Installation Guide
 
-**Assumes you already have npm installed.** A more comprehensive installation guide can be found in the [How-to Guide.](doc/Howto%20-%20Setting%20up%20Claude%20Todoist%20MCP%20on%20Windows.md)
+**Assuming you already have npm installed.** 
+
+A more comprehensive installation guide can be found in the [How-to Guide.](doc/Howto%20-%20Setting%20up%20Claude%20Todoist%20MCP%20on%20Windows.md)
 
 ### Installing via Smithery
 
