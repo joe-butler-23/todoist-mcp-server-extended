@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-
+import * as readline from "readline";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -698,7 +698,6 @@ const DELETE_PROJECT_TOOL: Tool = {
           ]
         }
       },
-      // For backward compatibility - single project parameters
       project_id: {
         type: "string",
         description: "ID of the project to delete"
@@ -2889,134 +2888,165 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     
       try {
-        // Process batch project deletion
         if (args.projects && args.projects.length > 0) {
-          // Get all projects in one API call to efficiently search by name
-          const allProjects = await todoistClient.getProjects();
-          
-          const results = await Promise.all(args.projects.map(async (projectData) => {
-            try {
-              // Determine project ID - either directly provided or find by name
-              let projectId = projectData.project_id;
-              let projectName = "";
-              
-              if (!projectId && projectData.project_name) {
-                const matchingProject = allProjects.find(project => 
-                  project.name.toLowerCase().includes(projectData.project_name!.toLowerCase())
+          // Fetch project details for all projects in the batch
+          const projectsToDelete = await Promise.all(
+            args.projects.map(async (projectData) => {
+              let project;
+              if (projectData.project_id) {
+                project = await todoistClient.getProject(projectData.project_id);
+              } else if (projectData.project_name) {
+                const projects = await todoistClient.getProjects();
+                project = projects.find(
+                  (p) => p.name.toLowerCase() === projectData.project_name!.toLowerCase()
                 );
-                
-                if (!matchingProject) {
-                  return {
-                    success: false,
-                    error: `Project not found: ${projectData.project_name}`,
-                    project_name: projectData.project_name
-                  };
-                }
-                
-                projectId = matchingProject.id;
-                projectName = matchingProject.name;
               }
-              
-              if (!projectId) {
+              return project;
+            })
+          );
+    
+          // Filter out any projects that were not found
+          const validProjects = projectsToDelete.filter((project) => project !== undefined);
+    
+          // Prompt for confirmation with project names and IDs
+          const confirmationMessage = `Are you sure you want to delete the following projects?\n\n${validProjects
+            .map((project) => `- ${project.name} (ID: ${project.id})`)
+            .join("\n")}\n\nType 'yes' to confirm or 'no' to cancel.`;
+    
+          const confirmDelete = await promptUser(confirmationMessage);
+    
+          if (confirmDelete.toLowerCase() !== "yes") {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: "Project deletion cancelled by user.",
+                },
+              ],
+              isError: false,
+            };
+          }
+    
+          // Proceed with batch deletion
+          const results = await Promise.all(
+            validProjects.map(async (project) => {
+              try {
+                await todoistClient.deleteProject(project.id);
+                return {
+                  success: true,
+                  project_id: project.id,
+                  project_name: project.name,
+                };
+              } catch (error) {
                 return {
                   success: false,
-                  error: "Either project_id or project_name must be provided",
-                  projectData
+                  error: error instanceof Error ? error.message : String(error),
+                  project_id: project.id,
+                  project_name: project.name,
                 };
               }
+            })
+          );
     
-              // Delete the project
-              await todoistClient.deleteProject(projectId);
-              
-              return {
-                success: true,
-                project_id: projectId,
-                project_name: projectName || `Project ID: ${projectId}`
-              };
-            } catch (error) {
-              return {
-                success: false,
-                error: error instanceof Error ? error.message : String(error),
-                projectData
-              };
-            }
-          }));
+          const successCount = results.filter((r) => r.success).length;
     
-          const successCount = results.filter(r => r.success).length;
-          
           return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                success: successCount === args.projects.length,
-                summary: {
-                  total: args.projects.length,
-                  succeeded: successCount,
-                  failed: args.projects.length - successCount
-                },
-                results
-              }, null, 2)
-            }],
-            isError: successCount < args.projects.length
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    success: successCount === validProjects.length,
+                    summary: {
+                      total: validProjects.length,
+                      succeeded: successCount,
+                      failed: validProjects.length - successCount,
+                    },
+                    results,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+            isError: successCount < validProjects.length,
           };
-        }
-        // Process single project deletion
-        else {
-          // Determine project ID - either directly provided or find by name
+        } else {
           let projectId = args.project_id;
-          let projectName = "";
-          
-          if (!projectId && args.project_name) {
+          let projectName = args.project_name;
+    
+          if (!projectId && projectName) {
             const projects = await todoistClient.getProjects();
-            const matchingProject = projects.find(project => 
-              project.name.toLowerCase().includes(args.project_name!.toLowerCase())
+            const project = projects.find(
+              (p) => p.name.toLowerCase() === projectName!.toLowerCase()
             );
-            
-            if (!matchingProject) {
+            if (project) {
+              projectId = project.id;
+              projectName = project.name;
+            } else {
               return {
-                content: [{
-                  type: "text",
-                  text: JSON.stringify({
-                    success: false,
-                    error: `Project not found: ${args.project_name}`
-                  }, null, 2)
-                }],
-                isError: true
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify({
+                      success: false,
+                      error: `Project not found: ${projectName}`,
+                    }),
+                  },
+                ],
+                isError: true,
               };
             }
-            
-            projectId = matchingProject.id;
-            projectName = matchingProject.name;
-          }
-          
-          if (!projectId) {
-            throw new Error("Either project_id or project_name must be provided");
+          } else if (projectId) {
+            const project = await todoistClient.getProject(projectId);
+            projectName = project.name;
           }
     
-          // Delete the project
-          await todoistClient.deleteProject(projectId);
-          
+          // Prompt for confirmation with project name and ID
+          const confirmationMessage = `Are you sure you want to delete the project "${projectName}" (ID: ${projectId})?\n\nType 'yes' to confirm or 'no' to cancel.`;
+    
+          const confirmDelete = await promptUser(confirmationMessage);
+    
+          if (confirmDelete.toLowerCase() !== "yes") {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: "Project deletion cancelled by user.",
+                },
+              ],
+              isError: false,
+            };
+          }
+    
+          // Proceed with single project deletion
+          await todoistClient.deleteProject(projectId!);
+    
           return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                success: true,
-                message: `Successfully deleted project${projectName ? ': "' + projectName + '"' : ' with ID: ' + projectId}`
-              }, null, 2)
-            }],
-            isError: false
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: true,
+                  message: `Successfully deleted project: "${projectName}" (ID: ${projectId})`,
+                }),
+              },
+            ],
+            isError: false,
           };
         }
       } catch (error) {
         return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              success: false,
-              error: error instanceof Error ? error.message : String(error)
-            }, null, 2)
-          }],
-          isError: true
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+              }),
+            },
+          ],
+          isError: true,
         };
       }
     }
@@ -3940,6 +3970,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
   }
 });
+
+// async functions
+
+async function promptUser(message: string): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(message + " ", (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
 
 async function runServer() {
   const transport = new StdioServerTransport();
