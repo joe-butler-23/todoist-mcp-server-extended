@@ -930,23 +930,56 @@ const DELETE_PERSONAL_LABEL_TOOL: Tool = {
 // Task Label Management Tool
 const UPDATE_TASK_LABELS_TOOL: Tool = {
   name: "todoist_update_task_labels",
-  description: "Update the labels of a task in Todoist",
+  description: "Update the labels of one or more tasks in Todoist",
   inputSchema: {
     type: "object",
     properties: {
+      tasks: {
+        type: "array",
+        description: "Array of tasks to update labels for (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            task_id: {
+              type: "string",
+              description: "ID of the task to update labels for (preferred)"
+            },
+            task_name: {
+              type: "string",
+              description: "Name/content of the task to search for and update labels (if ID not provided)"
+            },
+            labels: {
+              type: "array",
+              items: { type: "string" },
+              description: "Array of label names to set for the task"
+            }
+          },
+          required: ["labels"],
+          anyOf: [
+            { required: ["task_id"] },
+            { required: ["task_name"] }
+          ]
+        }
+      },
+      // For backward compatibility - single task parameters
+      task_id: {
+        type: "string",
+        description: "ID of the task to update labels for (preferred)"
+      },
       task_name: {
         type: "string",
-        description: "Name/content of the task to update labels for"
+        description: "Name/content of the task to search for and update labels (if ID not provided)"
       },
       labels: {
         type: "array",
-        items: {
-          type: "string"
-        },
+        items: { type: "string" },
         description: "Array of label names to set for the task"
       }
     },
-    required: ["task_name", "labels"]
+    anyOf: [
+      { required: ["tasks"] },
+      { required: ["labels"], anyOf: [{ required: ["task_id"] }, { required: ["task_name"] }] }
+    ]
   }
 };
 
@@ -1403,16 +1436,42 @@ function isDeletePersonalLabelArgs(args: unknown): args is {
 }
 
 function isUpdateTaskLabelsArgs(args: unknown): args is {
-  task_name: string;
-  labels: string[];
+  task_id?: string;
+  task_name?: string;
+  labels?: string[];
+  tasks?: Array<{
+    task_id?: string;
+    task_name?: string;
+    labels: string[];
+  }>;
 } {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("tasks" in args && Array.isArray((args as any).tasks)) {
+    return (args as any).tasks.every((task: any) => 
+      typeof task === "object" && 
+      task !== null && 
+      "labels" in task && 
+      Array.isArray(task.labels) &&
+      (
+        (task.task_id === undefined || typeof task.task_id === "string") &&
+        (task.task_name === undefined || typeof task.task_name === "string") &&
+        (task.task_id !== undefined || task.task_name !== undefined)
+      )
+    );
+  }
+  
+  // Check if it's a single task operation
   return (
-    typeof args === "object" &&
-    args !== null &&
-    "task_name" in args &&
-    "labels" in args &&
-    typeof (args as { task_name: string }).task_name === "string" &&
-    Array.isArray((args as { labels: string[] }).labels)
+    "labels" in args && 
+    Array.isArray((args as any).labels) &&
+    (
+      (("task_id" in args) && typeof (args as any).task_id === "string") ||
+      (("task_name" in args) && typeof (args as any).task_name === "string")
+    )
   );
 }
 
@@ -3024,34 +3083,144 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         throw new Error("Invalid arguments for todoist_update_task_labels");
       }
     
-      // First, search for the task
-      const tasks = await todoistClient.getTasks();
-      const matchingTask = tasks.find(task => 
-        task.content.toLowerCase().includes(args.task_name.toLowerCase())
-      );
+      try {
+        // Process batch label updates
+        if (args.tasks && args.tasks.length > 0) {
+          // Get all tasks in one API call to efficiently search by name
+          const allTasks = await todoistClient.getTasks();
+          
+          const results = await Promise.all(args.tasks.map(async (taskData) => {
+            try {
+              // Determine task ID - either directly provided or find by name
+              let taskId = taskData.task_id;
+              let taskContent = '';
+              
+              if (!taskId && taskData.task_name) {
+                const matchingTask = allTasks.find(task => 
+                  task.content.toLowerCase().includes(taskData.task_name!.toLowerCase())
+                );
+                
+                if (!matchingTask) {
+                  return {
+                    success: false,
+                    error: `Task not found: ${taskData.task_name}`,
+                    task_name: taskData.task_name
+                  };
+                }
+                
+                taskId = matchingTask.id;
+                taskContent = matchingTask.content;
+              }
+              
+              if (!taskId) {
+                return {
+                  success: false,
+                  error: "Either task_id or task_name must be provided",
+                  taskData
+                };
+              }
     
-      if (!matchingTask) {
+              // Update the task labels
+              await todoistClient.updateTask(taskId, {
+                labels: taskData.labels
+              });
+              
+              return {
+                success: true,
+                task_id: taskId,
+                content: taskContent || `Task ID: ${taskId}`,
+                labels: taskData.labels
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                taskData
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.tasks.length,
+                summary: {
+                  total: args.tasks.length,
+                  succeeded: successCount,
+                  failed: args.tasks.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.tasks.length
+          };
+        }
+        // Process single task label update (backward compatibility)
+        else {
+          // Determine task ID - either directly provided or find by name
+          let taskId = args.task_id;
+          let taskContent = '';
+          
+          if (!taskId && args.task_name) {
+            const tasks = await todoistClient.getTasks();
+            const matchingTask = tasks.find(task => 
+              task.content.toLowerCase().includes(args.task_name!.toLowerCase())
+            );
+            
+            if (!matchingTask) {
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: `Task not found: ${args.task_name}`
+                  }, null, 2)
+                }],
+                isError: true
+              };
+            }
+            
+            taskId = matchingTask.id;
+            taskContent = matchingTask.content;
+          }
+          
+          if (!taskId) {
+            throw new Error("Either task_id or task_name must be provided");
+          }
+    
+          // Update the task labels
+          await todoistClient.updateTask(taskId, {
+            labels: args.labels
+          });
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                task_id: taskId,
+                content: taskContent || `Task ID: ${taskId}`,
+                labels: args.labels
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
         return {
-          content: [{ 
-            type: "text", 
-            text: `Could not find a task matching "${args.task_name}"` 
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
           }],
-          isError: true,
+          isError: true
         };
       }
-    
-      // Update the task's labels
-      const updatedTask = await todoistClient.updateTask(matchingTask.id, {
-        labels: args.labels
-      });
-
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Labels updated for task "${matchingTask.content}":\n${JSON.stringify(updatedTask, null, 2)}` 
-        }],
-        isError: false,
-      };
     }
 
 
