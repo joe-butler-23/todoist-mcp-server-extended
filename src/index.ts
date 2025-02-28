@@ -1009,6 +1009,20 @@ const DELETE_PERSONAL_LABEL_TOOL: Tool = {
 };
 // Shared Label Tools
 
+const GET_SHARED_LABELS_TOOL: Tool = {
+  name: "todoist_get_shared_labels",
+  description: "Get all shared labels from Todoist",
+  inputSchema: {
+    type: "object",
+    properties: {
+      omit_personal: {
+        type: "boolean",
+        description: "Whether to exclude the names of the user's personal labels from the results (default: false)"
+      }
+    }
+  }
+};
+
 const RENAME_SHARED_LABELS_TOOL: Tool = {
   name: "todoist_rename_shared_labels",
   description: "Rename one or more shared labels in Todoist",
@@ -1653,6 +1667,19 @@ function isDeletePersonalLabelArgs(args: unknown): args is {
 
 // Shared Label Tools Typeguards
 
+function isGetSharedLabelsArgs(args: unknown): args is {
+  omit_personal?: boolean;
+} {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  return (
+    !("omit_personal" in args) || 
+    typeof (args as any).omit_personal === "boolean"
+  );
+}
+
 function isRenameSharedLabelsArgs(args: unknown): args is {
   name?: string;
   new_name?: string;
@@ -1773,6 +1800,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     GET_PERSONAL_LABEL_TOOL,
     UPDATE_PERSONAL_LABEL_TOOL,
     DELETE_PERSONAL_LABEL_TOOL,
+    GET_SHARED_LABELS_TOOL,
     RENAME_SHARED_LABELS_TOOL,
     REMOVE_SHARED_LABELS_TOOL,
     UPDATE_TASK_LABELS_TOOL
@@ -3556,6 +3584,41 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     
     // Shared Label Handlers
 
+    if (name === "todoist_get_shared_labels") {
+      if (!isGetSharedLabelsArgs(args)) {
+        throw new Error("Invalid arguments for todoist_get_shared_labels");
+      }
+    
+      try {
+        const sharedLabels = await todoistClient.getSharedLabels({
+          omitPersonal: args.omit_personal
+        });
+        
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              shared_labels: sharedLabels,
+              count: sharedLabels.length
+            }, null, 2)
+          }],
+          isError: false
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
+    }
+
     if (name === "todoist_rename_shared_labels") {
       if (!isRenameSharedLabelsArgs(args)) {
         throw new Error("Invalid arguments for todoist_rename_shared_labels");
@@ -3617,6 +3680,83 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               text: JSON.stringify({
                 success: true,
                 message: `Successfully renamed shared label "${args.name}" to "${args.new_name}"`
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
+    }
+
+    if (name === "todoist_remove_shared_labels") {
+      if (!isRemoveSharedLabelsArgs(args)) {
+        throw new Error("Invalid arguments for todoist_remove_shared_labels");
+      }
+    
+      try {
+        // Handle batch label removal
+        if (args.labels && args.labels.length > 0) {
+          const results = await Promise.all(args.labels.map(async (labelData) => {
+            try {
+              // Remove the shared label
+              await todoistClient.removeSharedLabel({
+                name: labelData.name
+              });
+              
+              return {
+                success: true,
+                label_name: labelData.name
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                label_name: labelData.name
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.labels.length,
+                summary: {
+                  total: args.labels.length,
+                  succeeded: successCount,
+                  failed: args.labels.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.labels.length
+          };
+        }
+        // Handle single label removal (backward compatibility)
+        else {
+          await todoistClient.removeSharedLabel({
+            name: args.name!
+          });
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                message: `Successfully removed all instances of shared label "${args.name}"`
               }, null, 2)
             }],
             isError: false
@@ -3782,82 +3922,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     }
     
-    if (name === "todoist_remove_shared_labels") {
-      if (!isRemoveSharedLabelsArgs(args)) {
-        throw new Error("Invalid arguments for todoist_remove_shared_labels");
-      }
-    
-      try {
-        // Handle batch label removal
-        if (args.labels && args.labels.length > 0) {
-          const results = await Promise.all(args.labels.map(async (labelData) => {
-            try {
-              // Remove the shared label
-              await todoistClient.removeSharedLabel({
-                name: labelData.name
-              });
-              
-              return {
-                success: true,
-                label_name: labelData.name
-              };
-            } catch (error) {
-              return {
-                success: false,
-                error: error instanceof Error ? error.message : String(error),
-                label_name: labelData.name
-              };
-            }
-          }));
-    
-          const successCount = results.filter(r => r.success).length;
-          
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                success: successCount === args.labels.length,
-                summary: {
-                  total: args.labels.length,
-                  succeeded: successCount,
-                  failed: args.labels.length - successCount
-                },
-                results
-              }, null, 2)
-            }],
-            isError: successCount < args.labels.length
-          };
-        }
-        // Handle single label removal (backward compatibility)
-        else {
-          await todoistClient.removeSharedLabel({
-            name: args.name!
-          });
-          
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                success: true,
-                message: `Successfully removed all instances of shared label "${args.name}"`
-              }, null, 2)
-            }],
-            isError: false
-          };
-        }
-      } catch (error) {
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              success: false,
-              error: error instanceof Error ? error.message : String(error)
-            }, null, 2)
-          }],
-          isError: true
-        };
-      }
-    }
+
 
     return {
       content: [{ type: "text", text: `Unknown tool: ${name}` }],
