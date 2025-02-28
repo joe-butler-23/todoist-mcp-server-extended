@@ -913,13 +913,58 @@ const GET_PERSONAL_LABEL_TOOL: Tool = {
 
 const UPDATE_PERSONAL_LABEL_TOOL: Tool = {
   name: "todoist_update_personal_label",
-  description: "Update an existing personal label in Todoist",
+  description: "Update one or more existing personal labels in Todoist",
   inputSchema: {
     type: "object",
     properties: {
+      labels: {
+        type: "array",
+        description: "Array of labels to update (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            label_id: {
+              type: "string",
+              description: "ID of the label to update (preferred)"
+            },
+            label_name: {
+              type: "string",
+              description: "Name of the label to search for and update (if ID not provided)"
+            },
+            name: {
+              type: "string",
+              description: "New name for the label (optional)"
+            },
+            color: {
+              type: "string",
+              description: "New color for the label (optional)",
+              enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", 
+                     "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", 
+                     "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+            },
+            order: {
+              type: "number",
+              description: "New order for the label (optional)"
+            },
+            is_favorite: {
+              type: "boolean",
+              description: "Whether the label is a favorite (optional)"
+            }
+          },
+          anyOf: [
+            { required: ["label_id"] },
+            { required: ["label_name"] }
+          ]
+        }
+      },
+      // For backward compatibility - single label parameters
       label_id: {
         type: "string",
         description: "ID of the label to update"
+      },
+      label_name: {
+        type: "string",
+        description: "Name of the label to search for and update (if ID not provided)"
       },
       name: {
         type: "string",
@@ -941,7 +986,10 @@ const UPDATE_PERSONAL_LABEL_TOOL: Tool = {
         description: "Whether the label is a favorite (optional)"
       }
     },
-    required: ["label_id"]
+    anyOf: [
+      { required: ["labels"] },
+      { anyOf: [{ required: ["label_id"] }, { required: ["label_name"] }] }
+    ]
   }
 };
 
@@ -1468,17 +1516,51 @@ function isGetPersonalLabelArgs(args: unknown): args is {
 }
 
 function isUpdatePersonalLabelArgs(args: unknown): args is {
-  label_id: string;
+  label_id?: string;
+  label_name?: string;
   name?: string;
   color?: string;
   order?: number;
   is_favorite?: boolean;
+  labels?: Array<{
+    label_id?: string;
+    label_name?: string;
+    name?: string;
+    color?: string;
+    order?: number;
+    is_favorite?: boolean;
+  }>;
 } {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("labels" in args && Array.isArray((args as any).labels)) {
+    return (args as any).labels.every((label: any) => 
+      typeof label === "object" && 
+      label !== null && 
+      (
+        (label.label_id !== undefined && typeof label.label_id === "string") ||
+        (label.label_name !== undefined && typeof label.label_name === "string")
+      ) &&
+      (label.name === undefined || typeof label.name === "string") &&
+      (label.color === undefined || typeof label.color === "string") &&
+      (label.order === undefined || typeof label.order === "number") &&
+      (label.is_favorite === undefined || typeof label.is_favorite === "boolean")
+    );
+  }
+  
+  // Check if it's a single label operation
   return (
-    typeof args === "object" &&
-    args !== null &&
-    "label_id" in args &&
-    typeof (args as { label_id: string }).label_id === "string"
+    (
+      ("label_id" in args && typeof (args as any).label_id === "string") ||
+      ("label_name" in args && typeof (args as any).label_name === "string")
+    ) &&
+    ((args as any).name === undefined || typeof (args as any).name === "string") &&
+    ((args as any).color === undefined || typeof (args as any).color === "string") &&
+    ((args as any).order === undefined || typeof (args as any).order === "number") &&
+    ((args as any).is_favorite === undefined || typeof (args as any).is_favorite === "boolean")
   );
 }
 
@@ -3171,19 +3253,150 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (!isUpdatePersonalLabelArgs(args)) {
         throw new Error("Invalid arguments for todoist_update_personal_label");
       }
-      const label = await todoistClient.updateLabel(args.label_id, {
-        name: args.name,
-        color: args.color,
-        order: args.order,
-        isFavorite: args.is_favorite
-      });
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Label updated:\n${JSON.stringify(label, null, 2)}`
-        }],
-        isError: false,
-      };
+    
+      try {
+        // Handle batch label updates
+        if (args.labels && args.labels.length > 0) {
+          // Get all labels in one API call to efficiently search by name
+          const allLabels = await todoistClient.getLabels();
+          
+          const results = await Promise.all(args.labels.map(async (labelData) => {
+            try {
+              // Determine label ID - either directly provided or find by name
+              let labelId = labelData.label_id;
+              let labelName = '';
+              
+              if (!labelId && labelData.label_name) {
+                const matchingLabel = allLabels.find(label => 
+                  label.name.toLowerCase() === labelData.label_name!.toLowerCase()
+                );
+                
+                if (!matchingLabel) {
+                  return {
+                    success: false,
+                    error: `Label not found: ${labelData.label_name}`,
+                    label_name: labelData.label_name
+                  };
+                }
+                
+                labelId = matchingLabel.id;
+                labelName = matchingLabel.name;
+              }
+              
+              if (!labelId) {
+                return {
+                  success: false,
+                  error: "Either label_id or label_name must be provided",
+                  labelData
+                };
+              }
+    
+              // Build update parameters
+              const updateData: any = {};
+              if (labelData.name !== undefined) updateData.name = labelData.name;
+              if (labelData.color !== undefined) updateData.color = labelData.color;
+              if (labelData.order !== undefined) updateData.order = labelData.order;
+              if (labelData.is_favorite !== undefined) updateData.isFavorite = labelData.is_favorite;
+    
+              // Update the label
+              const updatedLabel = await todoistClient.updateLabel(labelId, updateData);
+              
+              return {
+                success: true,
+                label: updatedLabel,
+                original_name: labelName || undefined
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                labelData
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.labels.length,
+                summary: {
+                  total: args.labels.length,
+                  succeeded: successCount,
+                  failed: args.labels.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.labels.length
+          };
+        }
+        // Handle single label update (backward compatibility)
+        else {
+          // Determine label ID - either directly provided or find by name
+          let labelId = args.label_id;
+          
+          if (!labelId && args.label_name) {
+            const labels = await todoistClient.getLabels();
+            const matchingLabel = labels.find(label => 
+              label.name.toLowerCase() === args.label_name!.toLowerCase()
+            );
+            
+            if (!matchingLabel) {
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: `Label not found: ${args.label_name}`
+                  }, null, 2)
+                }],
+                isError: true
+              };
+            }
+            
+            labelId = matchingLabel.id;
+          }
+          
+          if (!labelId) {
+            throw new Error("Either label_id or label_name must be provided");
+          }
+    
+          // Build update parameters
+          const updateData: any = {};
+          if (args.name !== undefined) updateData.name = args.name;
+          if (args.color !== undefined) updateData.color = args.color;
+          if (args.order !== undefined) updateData.order = args.order;
+          if (args.is_favorite !== undefined) updateData.isFavorite = args.is_favorite;
+    
+          // Update the label
+          const updatedLabel = await todoistClient.updateLabel(labelId, updateData);
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                label: updatedLabel
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
     }
 
     if (name === "todoist_delete_personal_label") {
