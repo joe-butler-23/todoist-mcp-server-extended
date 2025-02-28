@@ -835,10 +835,40 @@ const GET_PERSONAL_LABELS_TOOL: Tool = {
 
 const CREATE_PERSONAL_LABEL_TOOL: Tool = {
   name: "todoist_create_personal_label",
-  description: "Create a new personal label in Todoist",
+  description: "Create one or more personal labels in Todoist",
   inputSchema: {
     type: "object",
     properties: {
+      labels: {
+        type: "array",
+        description: "Array of labels to create (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "Name of the label"
+            },
+            color: {
+              type: "string",
+              description: "Color of the label (optional)",
+              enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", 
+                     "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", 
+                     "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+            },
+            order: {
+              type: "number",
+              description: "Order of the label (optional)"
+            },
+            is_favorite: {
+              type: "boolean",
+              description: "Whether the label is a favorite (optional)"
+            }
+          },
+          required: ["name"]
+        }
+      },
+      // For backward compatibility - single label parameters
       name: {
         type: "string",
         description: "Name of the label"
@@ -859,7 +889,10 @@ const CREATE_PERSONAL_LABEL_TOOL: Tool = {
         description: "Whether the label is a favorite (optional)"
       }
     },
-    required: ["name"]
+    anyOf: [
+      { required: ["labels"] },
+      { required: ["name"] }
+    ]
   }
 };
 
@@ -1385,16 +1418,41 @@ function isGetPersonalLabelsArgs(args: unknown): args is {} {
 }
 
 function isCreatePersonalLabelArgs(args: unknown): args is {
-  name: string;
+  name?: string;
   color?: string;
   order?: number;
   is_favorite?: boolean;
+  labels?: Array<{
+    name: string;
+    color?: string;
+    order?: number;
+    is_favorite?: boolean;
+  }>;
 } {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("labels" in args && Array.isArray((args as any).labels)) {
+    return (args as any).labels.every((label: any) => 
+      typeof label === "object" && 
+      label !== null && 
+      "name" in label && 
+      typeof label.name === "string" &&
+      (label.color === undefined || typeof label.color === "string") &&
+      (label.order === undefined || typeof label.order === "number") &&
+      (label.is_favorite === undefined || typeof label.is_favorite === "boolean")
+    );
+  }
+  
+  // Check if it's a single label operation
   return (
-    typeof args === "object" &&
-    args !== null &&
-    "name" in args &&
-    typeof (args as { name: string }).name === "string"
+    "name" in args && 
+    typeof (args as any).name === "string" &&
+    ((args as any).color === undefined || typeof (args as any).color === "string") &&
+    ((args as any).order === undefined || typeof (args as any).order === "number") &&
+    ((args as any).is_favorite === undefined || typeof (args as any).is_favorite === "boolean")
   );
 }
 
@@ -3016,19 +3074,83 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (!isCreatePersonalLabelArgs(args)) {
         throw new Error("Invalid arguments for todoist_create_personal_label");
       }
-      const label = await todoistClient.addLabel({
-        name: args.name,
-        color: args.color,
-        order: args.order,
-        isFavorite: args.is_favorite
-      });
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Label created:\n${JSON.stringify(label, null, 2)}`
-        }],
-        isError: false,
-      };
+    
+      try {
+        // Handle batch label creation
+        if (args.labels && args.labels.length > 0) {
+          const results = await Promise.all(args.labels.map(async (labelData) => {
+            try {
+              // Create the label
+              const label = await todoistClient.addLabel({
+                name: labelData.name,
+                color: labelData.color,
+                order: labelData.order,
+                isFavorite: labelData.is_favorite
+              });
+              
+              return {
+                success: true,
+                label
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                label_name: labelData.name
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.labels.length,
+                summary: {
+                  total: args.labels.length,
+                  succeeded: successCount,
+                  failed: args.labels.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.labels.length
+          };
+        }
+        // Handle single label creation (backward compatibility)
+        else {
+          const label = await todoistClient.addLabel({
+            name: args.name!,
+            color: args.color,
+            order: args.order,
+            isFavorite: args.is_favorite
+          });
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                label
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
     }
 
     if (name === "todoist_get_personal_label") {
