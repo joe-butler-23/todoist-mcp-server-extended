@@ -766,12 +766,43 @@ const GET_PROJECT_SECTIONS_TOOL: Tool = {
   }
 };
 
-const CREATE_SECTION_TOOL: Tool = {
-  name: "todoist_create_section",
-  description: "Create a new section in a Todoist project",
+const CREATE_PROJECT_SECTION_TOOL: Tool = {
+  name: "todoist_create_project_section",
+  description: "Create one or more sections in Todoist projects",
   inputSchema: {
     type: "object",
     properties: {
+      sections: {
+        type: "array",
+        description: "Array of sections to create (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            project_id: {
+              type: "string",
+              description: "ID of the project to create the section in"
+            },
+            project_name: {
+              type: "string",
+              description: "Name of the project to create the section in (if ID not provided)"
+            },
+            name: {
+              type: "string",
+              description: "Name of the section"
+            },
+            order: {
+              type: "number",
+              description: "Order of the section (optional)"
+            }
+          },
+          required: ["name"],
+          anyOf: [
+            { required: ["project_id"] },
+            { required: ["project_name"] }
+          ]
+        }
+      },
+      // For backward compatibility - single section parameters
       project_id: {
         type: "string",
         description: "ID of the project"
@@ -785,7 +816,10 @@ const CREATE_SECTION_TOOL: Tool = {
         description: "Order of the section (optional)"
       }
     },
-    required: ["project_id", "name"]
+    anyOf: [
+      { required: ["sections"] },
+      { required: ["project_id", "name"] }
+    ]
   }
 };
 
@@ -1269,18 +1303,45 @@ function isGetProjectSectionsArgs(args: unknown): args is {
   );
 }
 
-function isCreateSectionArgs(args: unknown): args is {
-  project_id: string;
-  name: string;
+function isCreateProjectSectionArgs(args: unknown): args is {
+  project_id?: string;
+  project_name?: string;
+  name?: string;
   order?: number;
+  sections?: Array<{
+    project_id?: string;
+    project_name?: string;
+    name: string;
+    order?: number;
+  }>;
 } {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("sections" in args && Array.isArray((args as any).sections)) {
+    return (args as any).sections.every((section: any) => 
+      typeof section === "object" && 
+      section !== null && 
+      "name" in section && 
+      typeof section.name === "string" &&
+      (
+        (section.project_id === undefined || typeof section.project_id === "string") &&
+        (section.project_name === undefined || typeof section.project_name === "string") &&
+        (section.order === undefined || typeof section.order === "number") &&
+        (section.project_id !== undefined || section.project_name !== undefined)
+      )
+    );
+  }
+  
+  // Check if it's a single section operation
   return (
-    typeof args === "object" &&
-    args !== null &&
-    "project_id" in args &&
-    "name" in args &&
-    typeof (args as { project_id: string; name: string }).project_id === "string" &&
-    typeof (args as { project_id: string; name: string }).name === "string"
+    "project_id" in args && 
+    typeof (args as any).project_id === "string" &&
+    "name" in args && 
+    typeof (args as any).name === "string" &&
+    ((args as any).order === undefined || typeof (args as any).order === "number")
   );
 }
 
@@ -1368,7 +1429,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     UPDATE_PROJECT_TOOL,
     DELETE_PROJECT_TOOL,
     GET_PROJECT_SECTIONS_TOOL,
-    CREATE_SECTION_TOOL,
+    CREATE_PROJECT_SECTION_TOOL,
     GET_PERSONAL_LABELS_TOOL,
     CREATE_PERSONAL_LABEL_TOOL,
     GET_PERSONAL_LABEL_TOOL,
@@ -2757,22 +2818,123 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     }
 
-    if (name === "todoist_create_section") {
-      if (!isCreateSectionArgs(args)) {
-        throw new Error("Invalid arguments for todoist_create_section");
+    if (name === "todoist_create_project_section") {
+      if (!isCreateProjectSectionArgs(args)) {
+        throw new Error("Invalid arguments for todoist_create_project_section");
       }
-      const section = await todoistClient.addSection({
-        projectId: args.project_id,
-        name: args.name,
-        order: args.order
-      });
-      return {
-        content: [{
-          type: "text",
-          text: `Section created:\n${JSON.stringify(section, null, 2)}`
-        }],
-        isError: false,
-      };
+    
+      try {
+        // Handle batch section creation
+        if (args.sections && args.sections.length > 0) {
+          // Get all projects in one API call to efficiently search by name if needed
+          const allProjects = await todoistClient.getProjects();
+          const projectNameToIdMap = new Map<string, string>();
+          
+          allProjects.forEach(project => {
+            projectNameToIdMap.set(project.name.toLowerCase(), project.id);
+          });
+          
+          const results = await Promise.all(args.sections.map(async (sectionData) => {
+            try {
+              // Determine project ID - either directly provided or find by name
+              let projectId = sectionData.project_id;
+              let projectName = "";
+              
+              if (!projectId && sectionData.project_name) {
+                const matchingProject = allProjects.find(project => 
+                  project.name.toLowerCase().includes(sectionData.project_name!.toLowerCase())
+                );
+                
+                if (!matchingProject) {
+                  return {
+                    success: false,
+                    error: `Project not found: ${sectionData.project_name}`,
+                    section_name: sectionData.name
+                  };
+                }
+                
+                projectId = matchingProject.id;
+                projectName = matchingProject.name;
+              }
+              
+              if (!projectId) {
+                return {
+                  success: false,
+                  error: "Either project_id or project_name must be provided",
+                  section_name: sectionData.name
+                };
+              }
+    
+              // Create the section
+              const section = await todoistClient.addSection({
+                projectId: projectId,
+                name: sectionData.name,
+                order: sectionData.order
+              });
+              
+              return {
+                success: true,
+                section,
+                project_name: projectName || undefined
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                section_data: sectionData
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.sections.length,
+                summary: {
+                  total: args.sections.length,
+                  succeeded: successCount,
+                  failed: args.sections.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.sections.length
+          };
+        }
+        // Process single section creation (backward compatibility)
+        else {
+          const section = await todoistClient.addSection({
+            projectId: args.project_id!,
+            name: args.name!,
+            order: args.order
+          });
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                section
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
     }
 
     // Label Management Handlers
