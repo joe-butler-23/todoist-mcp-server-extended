@@ -13,6 +13,7 @@ import { TodoistApi } from "@doist/todoist-api-typescript";
 
 // General Task tools
 
+
 const CREATE_TASK_TOOL: Tool = {
   name: "todoist_create_task",
   description: "Create one or more tasks in Todoist with full parameter support",
@@ -717,16 +718,51 @@ const DELETE_PROJECT_TOOL: Tool = {
 
 const GET_PROJECT_SECTIONS_TOOL: Tool = {
   name: "todoist_get_project_sections",
-  description: "Get all sections in a Todoist project",
+  description: "Get sections from one or more projects in Todoist",
   inputSchema: {
     type: "object",
     properties: {
+      projects: {
+        type: "array",
+        description: "Array of projects to get sections from (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            project_id: {
+              type: "string",
+              description: "ID of the project to get sections from (preferred)"
+            },
+            project_name: {
+              type: "string",
+              description: "Name of the project to get sections from (if ID not provided)"
+            }
+          },
+          anyOf: [
+            { required: ["project_id"] },
+            { required: ["project_name"] }
+          ]
+        }
+      },
+      // For backward compatibility - single project parameter
       project_id: {
         type: "string",
-        description: "ID of the project"
+        description: "ID of the project to get sections from"
+      },
+      project_name: {
+        type: "string",
+        description: "Name of the project to get sections from (if ID not provided)"
+      },
+      include_empty: {
+        type: "boolean",
+        description: "Whether to include sections with no tasks",
+        default: true
       }
     },
-    required: ["project_id"]
+    anyOf: [
+      { required: ["projects"] },
+      { required: ["project_id"] },
+      { required: ["project_name"] }
+    ]
   }
 };
 
@@ -1204,13 +1240,32 @@ function isDeleteProjectArgs(args: unknown): args is {
 }
 
 function isGetProjectSectionsArgs(args: unknown): args is {
-  project_id: string;
+  project_id?: string;
+  project_name?: string;
+  include_empty?: boolean;
+  projects?: Array<{
+    project_id?: string;
+    project_name?: string;
+  }>;
 } {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("projects" in args && Array.isArray((args as any).projects)) {
+    return (args as any).projects.every((project: any) => 
+      typeof project === "object" && 
+      project !== null && 
+      (("project_id" in project && typeof project.project_id === "string") || 
+       ("project_name" in project && typeof project.project_name === "string"))
+    );
+  }
+  
+  // Check if it's a single project operation
   return (
-    typeof args === "object" &&
-    args !== null &&
-    "project_id" in args &&
-    typeof (args as { project_id: string }).project_id === "string"
+    ("project_id" in args && typeof (args as any).project_id === "string") ||
+    ("project_name" in args && typeof (args as any).project_name === "string")
   );
 }
 
@@ -2541,14 +2596,165 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (!isGetProjectSectionsArgs(args)) {
         throw new Error("Invalid arguments for todoist_get_project_sections");
       }
-      const sections = await todoistClient.getSections(args.project_id);
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify(sections, null, 2)
-        }],
-        isError: false,
-      };
+    
+      try {
+        // Process batch project sections retrieval
+        if (args.projects && args.projects.length > 0) {
+          // Get all projects in one API call to efficiently search by name
+          const allProjects = await todoistClient.getProjects();
+          
+          const results = await Promise.all(args.projects.map(async (projectData) => {
+            try {
+              // Determine project ID - either directly provided or find by name
+              let projectId = projectData.project_id;
+              let projectName = "";
+              
+              if (!projectId && projectData.project_name) {
+                const matchingProject = allProjects.find(project => 
+                  project.name.toLowerCase().includes(projectData.project_name!.toLowerCase())
+                );
+                
+                if (!matchingProject) {
+                  return {
+                    success: false,
+                    error: `Project not found: ${projectData.project_name}`,
+                    project_name: projectData.project_name
+                  };
+                }
+                
+                projectId = matchingProject.id;
+                projectName = matchingProject.name;
+              }
+              
+              if (!projectId) {
+                return {
+                  success: false,
+                  error: "Either project_id or project_name must be provided",
+                  projectData
+                };
+              }
+    
+              // Get all sections for this project
+              const sections = await todoistClient.getSections(projectId);
+              
+              // Optionally get tasks for each section to determine if empty
+              let sectionsWithTaskCount = sections;
+              if (args.include_empty === false) {
+                const projectTasks = await todoistClient.getTasks({ projectId });
+                
+                sectionsWithTaskCount = sections.filter(section => {
+                  const sectionTasks = projectTasks.filter(task => task.sectionId === section.id);
+                  return sectionTasks.length > 0;
+                });
+              }
+              
+              return {
+                success: true,
+                project_id: projectId,
+                project_name: projectName || `Project ID: ${projectId}`,
+                sections: sectionsWithTaskCount,
+                count: sectionsWithTaskCount.length
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                projectData
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.projects.length,
+                summary: {
+                  total: args.projects.length,
+                  succeeded: successCount,
+                  failed: args.projects.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.projects.length
+          };
+        }
+        // Process single project sections retrieval
+        else {
+          // Determine project ID - either directly provided or find by name
+          let projectId = args.project_id;
+          let projectName = "";
+          
+          if (!projectId && args.project_name) {
+            const projects = await todoistClient.getProjects();
+            const matchingProject = projects.find(project => 
+              project.name.toLowerCase().includes(args.project_name!.toLowerCase())
+            );
+            
+            if (!matchingProject) {
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: `Project not found: ${args.project_name}`
+                  }, null, 2)
+                }],
+                isError: true
+              };
+            }
+            
+            projectId = matchingProject.id;
+            projectName = matchingProject.name;
+          }
+          
+          if (!projectId) {
+            throw new Error("Either project_id or project_name must be provided");
+          }
+    
+          // Get all sections for this project
+          const sections = await todoistClient.getSections(projectId);
+          
+          // Optionally filter empty sections
+          let sectionsResult = sections;
+          if (args.include_empty === false) {
+            const projectTasks = await todoistClient.getTasks({ projectId });
+            
+            sectionsResult = sections.filter(section => {
+              const sectionTasks = projectTasks.filter(task => task.sectionId === section.id);
+              return sectionTasks.length > 0;
+            });
+          }
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                project_id: projectId,
+                project_name: projectName || undefined,
+                sections: sectionsResult,
+                count: sectionsResult.length
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
     }
 
     if (name === "todoist_create_section") {
