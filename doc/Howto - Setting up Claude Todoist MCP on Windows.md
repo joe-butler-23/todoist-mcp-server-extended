@@ -1,4 +1,3 @@
-
 # Setting up Claude Todoist MCP on Windows
 
 This guide covers setting up the Todoist Model Context Protocol (MCP) server on Windows devices to enable Claude to interact with your Todoist tasks, projects, and labels.
@@ -9,6 +8,7 @@ This guide covers setting up the Todoist Model Context Protocol (MCP) server on 
 2. Manual setup (for development or advanced usage)
 
 ## Table of contents
+
 * [Setting up Claude Todoist MCP on Windows](#setting-up-claude-todoist-mcp-on-windows)
   * [Table of contents](#table-of-contents)
   * [Requirements](#requirements)
@@ -23,14 +23,13 @@ This guide covers setting up the Todoist Model Context Protocol (MCP) server on 
   * [Simple Troubleshooting](#simple-troubleshooting)
   * [Notes](#notes)
 
-
 ## Requirements
 
-- Claude Desktop App
-- Node.js installed on your Windows device
-- A Todoist API token ([how to get one](https://todoist.com/help/articles/find-your-api-token-Jpzx9IIlB))
-- Admin access to your Windows device
-- Winget package manager (pre-installed on Windows 11; for Windows 10 or if missing, see [Microsoft's installation guide](https://learn.microsoft.com/en-us/windows/package-manager/winget/))
+* Claude Desktop App
+* Node.js installed on your Windows device
+* A Todoist API token ([how to get one](https://todoist.com/help/articles/find-your-api-token-Jpzx9IIlB))
+* Admin access to your Windows device
+* Winget package manager (pre-installed on Windows 11; for Windows 10 or if missing, see [Microsoft's installation guide](https://learn.microsoft.com/en-us/windows/package-manager/winget/))
 
 ## Installation Steps
 
@@ -78,7 +77,7 @@ That's it! Smithery will automatically install the MCP server and configure Clau
 
 ``` bash
     npm install -g @chrusic/todoist-mcp-server-extended
-``` 
+```
 
 3. Open Claude Desktop and Navigate to: `File -> Settings -> Developer -> "Edit Config"`. That will Open the folder with the claude_desktop_config.json file.
 
@@ -94,7 +93,7 @@ That's it! Smithery will automatically install the MCP server and configure Clau
     }
 ```
 
-5. When all put together, it should look something like this: 
+5. When all put together, it should look something like this:
 
 ``` json
     {
@@ -110,7 +109,7 @@ That's it! Smithery will automatically install the MCP server and configure Clau
     }
 ```
 
-6. Todoist MCP Server extended is now configured for use. Skip to the Usage section below! 
+6. Todoist MCP Server extended is now configured for use. Skip to the Usage section below!
 
 ### 4c. Manual Install for Development *(Advanced)*
 
@@ -173,11 +172,11 @@ That's it! Smithery will automatically install the MCP server and configure Clau
 
 1. Restart Claude Desktop to apply the changes  
 2. In a new chat, you can now ask Claude to perform Todoist operations like:
-   - "Show me my overdue tasks"
-   - "Create a new task called 'Review report' due tomorrow"
-   - "Update my task 'Buy groceries' to high priority"
-   - "Show all my projects"
-   - "Create a new project called 'Home Renovation'"
+   * "Show me my overdue tasks"
+   * "Create a new task called 'Review report' due tomorrow"
+   * "Update my task 'Buy groceries' to high priority"
+   * "Show all my projects"
+   * "Create a new project called 'Home Renovation'"
 
 ## Simple Troubleshooting
 
@@ -191,9 +190,9 @@ If you encounter any issues:
 
 ## Notes
 
-- Multiple MCPs can be added under the `mcpServers` section - only add new server entries, not the entire JSON structure again
-- Make sure to maintain proper JSON formatting when manually editing the config file
-- Keep your Todoist API token secure and never share it with others!
+* Multiple MCPs can be added under the `mcpServers` section - only add new server entries, not the entire JSON structure again
+* Make sure to maintain proper JSON formatting when manually editing the config file
+* Keep your Todoist API token secure and never share it with others!
 
 That's it! Claude should now be able to interact with your Todoist account.
 
