@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import * as readline from "node:readline";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -670,50 +669,6 @@ const UPDATE_PROJECT_TOOL: Tool = {
   }
 };
 
-const DELETE_PROJECT_TOOL: Tool = {
-  name: "todoist_delete_project",
-  description: "Delete one or more projects from Todoist",
-  inputSchema: {
-    type: "object",
-    properties: {
-      projects: {
-        type: "array",
-        description: "Array of projects to delete (for batch operations)",
-        items: {
-          type: "object",
-          properties: {
-            project_id: {
-              type: "string",
-              description: "ID of the project to delete (preferred)"
-            },
-            project_name: {
-              type: "string",
-              description: "Name of the project to delete (if ID not provided)"
-            }
-          },
-          anyOf: [
-            { required: ["project_id"] },
-            { required: ["project_name"] }
-          ]
-        }
-      },
-      project_id: {
-        type: "string",
-        description: "ID of the project to delete"
-      },
-      project_name: {
-        type: "string",
-        description: "Name of the project to delete (if ID not provided)"
-      }
-    },
-    anyOf: [
-      { required: ["projects"] },
-      { required: ["project_id"] },
-      { required: ["project_name"] }
-    ]
-  }
-};
-
 const GET_PROJECT_SECTIONS_TOOL: Tool = {
   name: "todoist_get_project_sections",
   description: "Get sections from one or more projects in Todoist",
@@ -1006,6 +961,7 @@ const DELETE_PERSONAL_LABEL_TOOL: Tool = {
     required: ["label_id"]
   }
 };
+
 // Shared Label Tools
 
 const GET_SHARED_LABELS_TOOL: Tool = {
@@ -1450,35 +1406,6 @@ function isUpdateProjectArgs(args: unknown): args is {
   return "project_id" in args && typeof (args as any).project_id === "string";
 }
 
-function isDeleteProjectArgs(args: unknown): args is {
-  project_id?: string;
-  project_name?: string;
-  projects?: Array<{
-    project_id?: string;
-    project_name?: string;
-  }>;
-} {
-  if (typeof args !== "object" || args === null) {
-    return false;
-  }
-  
-  // Check if it's a batch operation
-  if ("projects" in args && Array.isArray((args as any).projects)) {
-    return (args as any).projects.every((project: any) => 
-      typeof project === "object" && 
-      project !== null && 
-      (("project_id" in project && typeof project.project_id === "string") || 
-       ("project_name" in project && typeof project.project_name === "string"))
-    );
-  }
-  
-  // Check if it's a single project operation
-  return (
-    ("project_id" in args && typeof (args as any).project_id === "string") ||
-    ("project_name" in args && typeof (args as any).project_name === "string")
-  );
-}
-
 function isGetProjectSectionsArgs(args: unknown): args is {
   project_id?: string;
   project_name?: string;
@@ -1796,7 +1723,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     GET_PROJECTS_TOOL,
     CREATE_PROJECT_TOOL,
     UPDATE_PROJECT_TOOL,
-    DELETE_PROJECT_TOOL,
     GET_PROJECT_SECTIONS_TOOL,
     CREATE_PROJECT_SECTION_TOOL,
     GET_PERSONAL_LABELS_TOOL,
@@ -2889,175 +2815,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
     }
-
-    if (name === "todoist_delete_project") {
-      if (!isDeleteProjectArgs(args)) {
-        throw new Error("Invalid arguments for todoist_delete_project");
-      }
-    
-      try {
-        if (args.projects && args.projects.length > 0) {
-          // Fetch project details for all projects in the batch
-          const projectsToDelete = await Promise.all(
-            args.projects.map(async (projectData) => {
-              let project;
-              if (projectData.project_id) {
-                project = await todoistClient.getProject(projectData.project_id);
-              } else if (projectData.project_name) {
-                const projects = await todoistClient.getProjects();
-                project = projects.find(
-                  (p) => p.name.toLowerCase() === projectData.project_name!.toLowerCase()
-                );
-              }
-              return project;
-            })
-          );
-    
-          // Filter out any projects that were not found
-          const validProjects = projectsToDelete.filter((project) => project !== undefined);
-    
-          // Prompt for confirmation with project names and IDs
-          const confirmationMessage = `Are you sure you want to delete the following projects?\n\n${validProjects
-            .map((project) => `- ${project.name} (ID: ${project.id})`)
-            .join("\n")}\n\nType 'yes' to confirm or 'no' to cancel.`;
-    
-          const confirmDelete = await promptUser(confirmationMessage);
-    
-          if (confirmDelete.toLowerCase() !== "yes") {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: "Project deletion cancelled by user.",
-                },
-              ],
-              isError: false,
-            };
-          }
-    
-          // Proceed with batch deletion
-          const results = await Promise.all(
-            validProjects.map(async (project) => {
-              try {
-                await todoistClient.deleteProject(project.id);
-                return {
-                  success: true,
-                  project_id: project.id,
-                  project_name: project.name,
-                };
-              } catch (error) {
-                return {
-                  success: false,
-                  error: error instanceof Error ? error.message : String(error),
-                  project_id: project.id,
-                  project_name: project.name,
-                };
-              }
-            })
-          );
-    
-          const successCount = results.filter((r) => r.success).length;
-    
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(
-                  {
-                    success: successCount === validProjects.length,
-                    summary: {
-                      total: validProjects.length,
-                      succeeded: successCount,
-                      failed: validProjects.length - successCount,
-                    },
-                    results,
-                  },
-                  null,
-                  2
-                ),
-              },
-            ],
-            isError: successCount < validProjects.length,
-          };
-        } else {
-          let projectId = args.project_id;
-          let projectName = args.project_name;
-    
-          if (!projectId && projectName) {
-            const projects = await todoistClient.getProjects();
-            const project = projects.find(
-              (p) => p.name.toLowerCase() === projectName!.toLowerCase()
-            );
-            if (project) {
-              projectId = project.id;
-              projectName = project.name;
-            } else {
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify({
-                      success: false,
-                      error: `Project not found: ${projectName}`,
-                    }),
-                  },
-                ],
-                isError: true,
-              };
-            }
-          } else if (projectId) {
-            const project = await todoistClient.getProject(projectId);
-            projectName = project.name;
-          }
-    
-          // Prompt for confirmation with project name and ID
-          const confirmationMessage = `Are you sure you want to delete the project "${projectName}" (ID: ${projectId})?\n\nType 'yes' to confirm or 'no' to cancel.`;
-    
-          const confirmDelete = await promptUser(confirmationMessage);
-    
-          if (confirmDelete.toLowerCase() !== "yes") {
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: "Project deletion cancelled by user.",
-                },
-              ],
-              isError: false,
-            };
-          }
-    
-          // Proceed with single project deletion
-          await todoistClient.deleteProject(projectId!);
-    
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  success: true,
-                  message: `Successfully deleted project: "${projectName}" (ID: ${projectId})`,
-                }),
-              },
-            ],
-            isError: false,
-          };
-        }
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                success: false,
-                error: error instanceof Error ? error.message : String(error),
-              }),
-            },
-          ],
-          isError: true,
-        };
-      }
-    }
     
     if (name === "todoist_get_project_sections") {
       if (!isGetProjectSectionsArgs(args)) {
@@ -3979,20 +3736,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 // async functions
-
-async function promptUser(message: string): Promise<string> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise((resolve) => {
-    rl.question(message + " ", (answer) => {
-      rl.close();
-      resolve(answer);
-    });
-  });
-}
 
 async function runServer() {
   const transport = new StdioServerTransport();
