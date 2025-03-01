@@ -57,21 +57,6 @@ Batch projects:
   - `favorite` (boolean, optional): Whether the project should be a favorite  
   - `view_style` (string, optional): View style of the project ('list' or 'board')
 
-### todoist_delete_project
-
-Delete one or more projects from Todoist.
-
-Single project:
-
-- `project_id` (string): ID of the project to delete
-- `project_name` (string): Name of the project to delete (if ID not provided)
-
-Batch projects:
-
-- `projects` (array, required): Array of project objects to delete, each containing:
-  - `project_id` (string, preferred): ID of the project to delete
-  - `project_name` (string): Name of the project to delete (if ID not provided)
-
 ### todoist_get_project_sections
 
 Get sections from one or more projects in Todoist.
