@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import * as readline from "readline";
+
+import * as readline from "node:readline";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -8,8 +9,6 @@ import {
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { TodoistApi } from "@doist/todoist-api-typescript";
-
-// Define task tools in order: Project, Helper tools, Task Tools, Label Tools. 
 
 // Task tools
 
@@ -823,6 +822,7 @@ const CREATE_PROJECT_SECTION_TOOL: Tool = {
 };
 
 // Personal Label Tools
+
 const GET_PERSONAL_LABELS_TOOL: Tool = {
   name: "todoist_get_personal_labels",
   description: "Get all personal labels from Todoist",
@@ -1154,6 +1154,7 @@ const UPDATE_TASK_LABELS_TOOL: Tool = {
 };
 
 // Server implementation
+
 const server = new Server(
   {
     name: "todoist-mcp-server",
@@ -1167,6 +1168,7 @@ const server = new Server(
 );
 
 // Check for API token
+
 const TODOIST_API_TOKEN = process.env.TODOIST_API_TOKEN!;
 if (!TODOIST_API_TOKEN) {
   console.error("Error: TODOIST_API_TOKEN environment variable is required");
@@ -1174,6 +1176,7 @@ if (!TODOIST_API_TOKEN) {
 }
 
 // Initialize Todoist client
+
 const todoistClient = new TodoistApi(TODOIST_API_TOKEN);
 
 // Task Tools TypeGuards
@@ -1740,6 +1743,7 @@ function isRemoveSharedLabelsArgs(args: unknown): args is {
 }
 
 // Task Label Typeguard
+
 function isUpdateTaskLabelsArgs(args: unknown): args is {
   task_id?: string;
   task_name?: string;
@@ -1780,7 +1784,8 @@ function isUpdateTaskLabelsArgs(args: unknown): args is {
   );
 }
 
-// All Tool handlers
+// List tools Schema
+
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     CREATE_TASK_TOOL,
@@ -1805,6 +1810,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     UPDATE_TASK_LABELS_TOOL
   ],
 }));
+
+// All Tool handlers
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
@@ -2507,6 +2514,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     // Project Handlers
+
     if (name === "todoist_get_projects") {
       if (!isGetProjectsArgs(args)) {
         throw new Error("Invalid arguments for todoist_get_projects");
@@ -3807,6 +3815,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     // Task Label Handler
+
     if (name === "todoist_update_task_labels") {
       if (!isUpdateTaskLabelsArgs(args)) {
         throw new Error("Invalid arguments for todoist_update_task_labels");
@@ -3952,8 +3961,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     }
     
-
-
     return {
       content: [{ type: "text", text: `Unknown tool: ${name}` }],
       isError: true,
