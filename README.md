@@ -21,7 +21,7 @@ For a complete list of available tools as well as their usage, see [tools.md](do
 
 ## Quick Installation Guide
 
-**Assuming you already have npm installed.** 
+**Assuming you already have npm installed.**
 
 A more comprehensive installation guide can be found in the [How-to Guide.](doc/Howto%20-%20Setting%20up%20Claude%20Todoist%20MCP%20on%20Windows.md)
 
@@ -43,13 +43,13 @@ To install Todoist MCP Server Extended for Claude Desktop via [Smithery](https:/
 
 ``` bash
     npm install -g @chrusic/todoist-mcp-server-extended
-``` 
+```
 
 ## Setup
 
 ### Grab a Todoist API Token
 
-1. Log in to your [Todoist account](https://www.todoist.com/) 
+1. Log in to your [Todoist account](https://www.todoist.com/)
 2. Navigate to `Settings → Integrations`
 3. Find your API token under `Developer`
 4. Press `Copy API Token`
@@ -58,9 +58,9 @@ For more information about the Todoist API, visit the [official Todoist API docu
 
 ### Add MCP Server and API Token Claude Desktop Client
 
-1. In your  `claude_desktop_config.json` file, paste the following json snippet between: `"mcpServers":{ }: `
+1. In your  `claude_desktop_config.json` file, paste the following json snippet between: `"mcpServers":{ }:`
 
-``` json
+    ``` json
     "todoist": {
       "command": "npx",
       "args": ["-y", "@chrusic/todoist-mcp-server-extended"],
@@ -68,38 +68,38 @@ For more information about the Todoist API, visit the [official Todoist API docu
           "TODOIST_API_TOKEN": "PASTE-YOUR-API-TOKEN-HERE"
       }
     }
-```
+    ```
 
-2. When all put together, it should look something like this: 
+2. When all put together, it should look something like this:
 
-``` json
+    ``` json
     {
-      "mcpServers": {
-          "todoist": {
-          "command": "npx",
-          "args": ["-y", "@chrusic/todoist-mcp-server-extended"],
-          "env": {
-              "TODOIST_API_TOKEN": "PASTE-YOUR-API-TOKEN-HERE"
-          }
+    "mcpServers": {
+        "todoist": {
+        "command": "npx",
+        "args": ["-y", "@chrusic/todoist-mcp-server-extended"],
+        "env": {
+            "TODOIST_API_TOKEN": "PASTE-YOUR-API-TOKEN-HERE"
         }
-      }
+        }
     }
-```
+    }
+    ```
 
 3. Claude Desktop client will then start the MCP server and load the tools on the next client (re)start.
 
 ## Example Usage
 
-Some simple suggestions on what to ask Claude. Note that sometimes you have to be *very* direct to get claude to use the tools: 
+Some simple suggestions on what to ask Claude. Note that sometimes you have to be *very* direct to get claude to use the tools:
 
-- "Using the MCP tool: todoist_get_tasks, list all my tasks for the day."
-- "Create task 'Review PR' in project 'Work' section 'To Do'"
-- "Add label 'Important' to task 'Review PR'"
-- "Show all tasks with label 'Important' in project 'Work'"
-- "Move task 'Documentation' to section 'In Progress'"
-- "Mark the documentation task as complete"
-- "Give me some suggestions for listed tasks I can do today as I'm going shopping in town."
-- "Break task X down in to smaller subtasks and add due dates, x, y, z."
+* "Using the MCP tool: todoist_get_tasks, list all my tasks for the day."
+* "Create task 'Review PR' in project 'Work' section 'To Do'"
+* "Add label 'Important' to task 'Review PR'"
+* "Show all tasks with label 'Important' in project 'Work'"
+* "Move task 'Documentation' to section 'In Progress'"
+* "Mark the documentation task as complete"
+* "Give me some suggestions for listed tasks I can do today as I'm going shopping in town."
+* "Break task X down in to smaller subtasks and add due dates, x, y, z."
 
 ## Contributing
 

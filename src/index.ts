@@ -9,114 +9,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { TodoistApi } from "@doist/todoist-api-typescript";
 
-// Define task tools in order: Project, Helper tools, Task Tools, Label Tools. 
-
-// Project Tools
-const GET_PROJECTS_TOOL: Tool = {
-  name: "todoist_get_projects",
-  description: "Get all projects from Todoist",
-  inputSchema: {
-    type: "object",
-    properties: {}
-  }
-};
-
-const CREATE_PROJECT_TOOL: Tool = {
-  name: "todoist_create_project",
-  description: "Create a new project in Todoist",
-  inputSchema: {
-    type: "object",
-    properties: {
-      name: {
-        type: "string",
-        description: "Name of the project"
-      },
-      parent_id: {
-        type: "string",
-        description: "Parent project ID for nested projects (optional)"
-      },
-      color: {
-        type: "string",
-        description: "Color of the project (optional)",
-        enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
-      },
-      favorite: {
-        type: "boolean",
-        description: "Whether the project is a favorite (optional)"
-      }
-    },
-    required: ["name"]
-  }
-};
-
-const UPDATE_PROJECT_TOOL: Tool = {
-  name: "todoist_update_project",
-  description: "Update an existing project in Todoist",
-  inputSchema: {
-    type: "object",
-    properties: {
-      project_id: {
-        type: "string",
-        description: "ID of the project to update"
-      },
-      name: {
-        type: "string",
-        description: "New name for the project (optional)"
-      },
-      color: {
-        type: "string",
-        description: "New color for the project (optional)",
-        enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
-      },
-      favorite: {
-        type: "boolean",
-        description: "Whether the project should be a favorite (optional)"
-      }
-    },
-    required: ["project_id"]
-  }
-};
-
-const GET_PROJECT_SECTIONS_TOOL: Tool = {
-  name: "todoist_get_project_sections",
-  description: "Get all sections in a Todoist project",
-  inputSchema: {
-    type: "object",
-    properties: {
-      project_id: {
-        type: "string",
-        description: "ID of the project"
-      }
-    },
-    required: ["project_id"]
-  }
-};
-
-// Helper tools
-const CREATE_SECTION_TOOL: Tool = {
-  name: "todoist_create_section",
-  description: "Create a new section in a Todoist project",
-  inputSchema: {
-    type: "object",
-    properties: {
-      project_id: {
-        type: "string",
-        description: "ID of the project"
-      },
-      name: {
-        type: "string",
-        description: "Name of the section"
-      },
-      order: {
-        type: "number",
-        description: "Order of the section (optional)"
-      }
-    },
-    required: ["project_id", "name"]
-  }
-};
-
-// General Task tools
+// Task tools
 
 const CREATE_TASK_TOOL: Tool = {
   name: "todoist_create_task",
@@ -587,7 +480,304 @@ const COMPLETE_TASK_TOOL: Tool = {
   }
 };
 
-// Personal Label Management Tools
+// Project Tools
+
+const GET_PROJECTS_TOOL: Tool = {
+  name: "todoist_get_projects",
+  description: "Get projects with optional filtering and hierarchy information",
+  inputSchema: {
+    type: "object",
+    properties: {
+      project_ids: {
+        type: "array",
+        items: { type: "string" },
+        description: "Optional: Specific project IDs to retrieve"
+      },
+      include_sections: {
+        type: "boolean",
+        description: "Optional: Include sections within each project",
+        default: false
+      },
+      include_hierarchy: {
+        type: "boolean", 
+        description: "Optional: Include full parent-child relationships",
+        default: false
+      }
+    }
+  }
+};
+
+const CREATE_PROJECT_TOOL: Tool = {
+  name: "todoist_create_project",
+  description: "Create one or more projects with support for nested hierarchies",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projects: {
+        type: "array",
+        description: "Array of projects to create (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "Name of the project"
+            },
+            parent_id: {
+              type: "string",
+              description: "Parent project ID (optional)"
+            },
+            parent_name: {
+              type: "string",
+              description: "Name of the parent project (will be created or found automatically)"
+            },
+            color: {
+              type: "string",
+              description: "Color of the project (optional)",
+              enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", 
+                     "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", 
+                     "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+            },
+            favorite: {
+              type: "boolean",
+              description: "Whether the project is a favorite (optional)"
+            },
+            view_style: {
+              type: "string",
+              description: "View style of the project (optional)",
+              enum: ["list", "board"]
+            },
+            sections: {
+              type: "array",
+              items: { type: "string" },
+              description: "Sections to create within this project (optional)"
+            }
+          },
+          required: ["name"]
+        }
+      },
+      // For backward compatibility - single project parameters
+      name: {
+        type: "string",
+        description: "Name of the project (for single project creation)"
+      },
+      parent_id: {
+        type: "string",
+        description: "Parent project ID (optional)"
+      },
+      color: {
+        type: "string",
+        description: "Color of the project (optional)",
+        enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", 
+               "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", 
+               "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+      },
+      favorite: {
+        type: "boolean",
+        description: "Whether the project is a favorite (optional)"
+      },
+      view_style: {
+        type: "string",
+        description: "View style of the project (optional)",
+        enum: ["list", "board"]
+      }
+    },
+    anyOf: [
+      { required: ["projects"] },
+      { required: ["name"] }
+    ]
+  }
+};
+
+const UPDATE_PROJECT_TOOL: Tool = {
+  name: "todoist_update_project",
+  description: "Update one or more projects in Todoist",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projects: {
+        type: "array",
+        description: "Array of projects to update (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            project_id: {
+              type: "string",
+              description: "ID of the project to update (preferred)"
+            },
+            project_name: {
+              type: "string",
+              description: "Name of the project to update (if ID not provided)"
+            },
+            name: {
+              type: "string",
+              description: "New name for the project (optional)"
+            },
+            color: {
+              type: "string",
+              description: "New color for the project (optional)",
+              enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", 
+                     "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", 
+                     "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+            },
+            favorite: {
+              type: "boolean",
+              description: "Whether the project should be a favorite (optional)"
+            },
+            view_style: {
+              type: "string",
+              description: "View style of the project (optional)",
+              enum: ["list", "board"]
+            }
+          },
+          anyOf: [
+            { required: ["project_id"] },
+            { required: ["project_name"] }
+          ]
+        }
+      },
+      // For backward compatibility - single project parameters
+      project_id: {
+        type: "string",
+        description: "ID of the project to update"
+      },
+      name: {
+        type: "string",
+        description: "New name for the project (optional)"
+      },
+      color: {
+        type: "string",
+        description: "New color for the project (optional)",
+        enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", 
+               "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", 
+               "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+      },
+      favorite: {
+        type: "boolean",
+        description: "Whether the project should be a favorite (optional)"
+      },
+      view_style: {
+        type: "string",
+        description: "View style of the project (optional)",
+        enum: ["list", "board"]
+      }
+    },
+    anyOf: [
+      { required: ["projects"] },
+      { required: ["project_id"] }
+    ]
+  }
+};
+
+const GET_PROJECT_SECTIONS_TOOL: Tool = {
+  name: "todoist_get_project_sections",
+  description: "Get sections from one or more projects in Todoist",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projects: {
+        type: "array",
+        description: "Array of projects to get sections from (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            project_id: {
+              type: "string",
+              description: "ID of the project to get sections from (preferred)"
+            },
+            project_name: {
+              type: "string",
+              description: "Name of the project to get sections from (if ID not provided)"
+            }
+          },
+          anyOf: [
+            { required: ["project_id"] },
+            { required: ["project_name"] }
+          ]
+        }
+      },
+      // For backward compatibility - single project parameter
+      project_id: {
+        type: "string",
+        description: "ID of the project to get sections from"
+      },
+      project_name: {
+        type: "string",
+        description: "Name of the project to get sections from (if ID not provided)"
+      },
+      include_empty: {
+        type: "boolean",
+        description: "Whether to include sections with no tasks",
+        default: true
+      }
+    },
+    anyOf: [
+      { required: ["projects"] },
+      { required: ["project_id"] },
+      { required: ["project_name"] }
+    ]
+  }
+};
+
+const CREATE_PROJECT_SECTION_TOOL: Tool = {
+  name: "todoist_create_project_section",
+  description: "Create one or more sections in Todoist projects",
+  inputSchema: {
+    type: "object",
+    properties: {
+      sections: {
+        type: "array",
+        description: "Array of sections to create (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            project_id: {
+              type: "string",
+              description: "ID of the project to create the section in"
+            },
+            project_name: {
+              type: "string",
+              description: "Name of the project to create the section in (if ID not provided)"
+            },
+            name: {
+              type: "string",
+              description: "Name of the section"
+            },
+            order: {
+              type: "number",
+              description: "Order of the section (optional)"
+            }
+          },
+          required: ["name"],
+          anyOf: [
+            { required: ["project_id"] },
+            { required: ["project_name"] }
+          ]
+        }
+      },
+      // For backward compatibility - single section parameters
+      project_id: {
+        type: "string",
+        description: "ID of the project"
+      },
+      name: {
+        type: "string",
+        description: "Name of the section"
+      },
+      order: {
+        type: "number",
+        description: "Order of the section (optional)"
+      }
+    },
+    anyOf: [
+      { required: ["sections"] },
+      { required: ["project_id", "name"] }
+    ]
+  }
+};
+
+// Personal Label Tools
+
 const GET_PERSONAL_LABELS_TOOL: Tool = {
   name: "todoist_get_personal_labels",
   description: "Get all personal labels from Todoist",
@@ -599,10 +789,40 @@ const GET_PERSONAL_LABELS_TOOL: Tool = {
 
 const CREATE_PERSONAL_LABEL_TOOL: Tool = {
   name: "todoist_create_personal_label",
-  description: "Create a new personal label in Todoist",
+  description: "Create one or more personal labels in Todoist",
   inputSchema: {
     type: "object",
     properties: {
+      labels: {
+        type: "array",
+        description: "Array of labels to create (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "Name of the label"
+            },
+            color: {
+              type: "string",
+              description: "Color of the label (optional)",
+              enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", 
+                     "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", 
+                     "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+            },
+            order: {
+              type: "number",
+              description: "Order of the label (optional)"
+            },
+            is_favorite: {
+              type: "boolean",
+              description: "Whether the label is a favorite (optional)"
+            }
+          },
+          required: ["name"]
+        }
+      },
+      // For backward compatibility - single label parameters
       name: {
         type: "string",
         description: "Name of the label"
@@ -623,7 +843,10 @@ const CREATE_PERSONAL_LABEL_TOOL: Tool = {
         description: "Whether the label is a favorite (optional)"
       }
     },
-    required: ["name"]
+    anyOf: [
+      { required: ["labels"] },
+      { required: ["name"] }
+    ]
   }
 };
 
@@ -644,13 +867,58 @@ const GET_PERSONAL_LABEL_TOOL: Tool = {
 
 const UPDATE_PERSONAL_LABEL_TOOL: Tool = {
   name: "todoist_update_personal_label",
-  description: "Update an existing personal label in Todoist",
+  description: "Update one or more existing personal labels in Todoist",
   inputSchema: {
     type: "object",
     properties: {
+      labels: {
+        type: "array",
+        description: "Array of labels to update (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            label_id: {
+              type: "string",
+              description: "ID of the label to update (preferred)"
+            },
+            label_name: {
+              type: "string",
+              description: "Name of the label to search for and update (if ID not provided)"
+            },
+            name: {
+              type: "string",
+              description: "New name for the label (optional)"
+            },
+            color: {
+              type: "string",
+              description: "New color for the label (optional)",
+              enum: ["berry_red", "red", "orange", "yellow", "olive_green", "lime_green", "green", 
+                     "mint_green", "teal", "sky_blue", "light_blue", "blue", "grape", "violet", 
+                     "lavender", "magenta", "salmon", "charcoal", "grey", "taupe"]
+            },
+            order: {
+              type: "number",
+              description: "New order for the label (optional)"
+            },
+            is_favorite: {
+              type: "boolean",
+              description: "Whether the label is a favorite (optional)"
+            }
+          },
+          anyOf: [
+            { required: ["label_id"] },
+            { required: ["label_name"] }
+          ]
+        }
+      },
+      // For backward compatibility - single label parameters
       label_id: {
         type: "string",
         description: "ID of the label to update"
+      },
+      label_name: {
+        type: "string",
+        description: "Name of the label to search for and update (if ID not provided)"
       },
       name: {
         type: "string",
@@ -672,7 +940,10 @@ const UPDATE_PERSONAL_LABEL_TOOL: Tool = {
         description: "Whether the label is a favorite (optional)"
       }
     },
-    required: ["label_id"]
+    anyOf: [
+      { required: ["labels"] },
+      { anyOf: [{ required: ["label_id"] }, { required: ["label_name"] }] }
+    ]
   }
 };
 
@@ -691,30 +962,155 @@ const DELETE_PERSONAL_LABEL_TOOL: Tool = {
   }
 };
 
-// Task Label Management Tool
-const UPDATE_TASK_LABELS_TOOL: Tool = {
-  name: "todoist_update_task_labels",
-  description: "Update the labels of a task in Todoist",
+// Shared Label Tools
+
+const GET_SHARED_LABELS_TOOL: Tool = {
+  name: "todoist_get_shared_labels",
+  description: "Get all shared labels from Todoist",
   inputSchema: {
     type: "object",
     properties: {
+      omit_personal: {
+        type: "boolean",
+        description: "Whether to exclude the names of the user's personal labels from the results (default: false)"
+      }
+    }
+  }
+};
+
+const RENAME_SHARED_LABELS_TOOL: Tool = {
+  name: "todoist_rename_shared_labels",
+  description: "Rename one or more shared labels in Todoist",
+  inputSchema: {
+    type: "object",
+    properties: {
+      labels: {
+        type: "array",
+        description: "Array of label rename operations (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "The name of the existing label to rename"
+            },
+            new_name: {
+              type: "string",
+              description: "The new name for the label"
+            }
+          },
+          required: ["name", "new_name"]
+        }
+      },
+      // For backward compatibility - single label parameters
+      name: {
+        type: "string",
+        description: "The name of the existing label to rename"
+      },
+      new_name: {
+        type: "string",
+        description: "The new name for the label"
+      }
+    },
+    anyOf: [
+      { required: ["labels"] },
+      { required: ["name", "new_name"] }
+    ]
+  }
+};
+
+const REMOVE_SHARED_LABELS_TOOL: Tool = {
+  name: "todoist_remove_shared_labels",
+  description: "Remove one or more shared labels from Todoist tasks",
+  inputSchema: {
+    type: "object",
+    properties: {
+      labels: {
+        type: "array",
+        description: "Array of shared label names to remove (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              description: "The name of the label to remove"
+            }
+          },
+          required: ["name"]
+        }
+      },
+      // For backward compatibility - single label parameter
+      name: {
+        type: "string",
+        description: "The name of the label to remove"
+      }
+    },
+    anyOf: [
+      { required: ["labels"] },
+      { required: ["name"] }
+    ]
+  }
+};
+
+// Task Label Tool
+
+const UPDATE_TASK_LABELS_TOOL: Tool = {
+  name: "todoist_update_task_labels",
+  description: "Update the labels of one or more tasks in Todoist",
+  inputSchema: {
+    type: "object",
+    properties: {
+      tasks: {
+        type: "array",
+        description: "Array of tasks to update labels for (for batch operations)",
+        items: {
+          type: "object",
+          properties: {
+            task_id: {
+              type: "string",
+              description: "ID of the task to update labels for (preferred)"
+            },
+            task_name: {
+              type: "string",
+              description: "Name/content of the task to search for and update labels (if ID not provided)"
+            },
+            labels: {
+              type: "array",
+              items: { type: "string" },
+              description: "Array of label names to set for the task"
+            }
+          },
+          required: ["labels"],
+          anyOf: [
+            { required: ["task_id"] },
+            { required: ["task_name"] }
+          ]
+        }
+      },
+      // For backward compatibility - single task parameters
+      task_id: {
+        type: "string",
+        description: "ID of the task to update labels for (preferred)"
+      },
       task_name: {
         type: "string",
-        description: "Name/content of the task to update labels for"
+        description: "Name/content of the task to search for and update labels (if ID not provided)"
       },
       labels: {
         type: "array",
-        items: {
-          type: "string"
-        },
+        items: { type: "string" },
         description: "Array of label names to set for the task"
       }
     },
-    required: ["task_name", "labels"]
+    anyOf: [
+      { required: ["tasks"] },
+      { required: ["labels"], anyOf: [{ required: ["task_id"] }, { required: ["task_name"] }] }
+    ]
   }
 };
 
 // Server implementation
+
 const server = new Server(
   {
     name: "todoist-mcp-server",
@@ -728,6 +1124,7 @@ const server = new Server(
 );
 
 // Check for API token
+
 const TODOIST_API_TOKEN = process.env.TODOIST_API_TOKEN!;
 if (!TODOIST_API_TOKEN) {
   console.error("Error: TODOIST_API_TOKEN environment variable is required");
@@ -735,6 +1132,7 @@ if (!TODOIST_API_TOKEN) {
 }
 
 // Initialize Todoist client
+
 const todoistClient = new TodoistApi(TODOIST_API_TOKEN);
 
 // Task Tools TypeGuards
@@ -930,61 +1328,153 @@ function isCompleteTaskArgs(args: unknown): args is {
 
 // Project Tools TypeGuards
 
-function isGetProjectsArgs(args: unknown): args is {} {
-  return typeof args === "object" && args !== null;
+function isGetProjectsArgs(args: unknown): args is {
+  project_ids?: string[];
+  include_sections?: boolean;
+  include_hierarchy?: boolean;
+} {
+  return (
+    typeof args === "object" && 
+    args !== null
+  );
 }
 
 function isCreateProjectArgs(args: unknown): args is {
-  name: string;
+  name?: string;
   parent_id?: string;
   color?: string;
   favorite?: boolean;
+  view_style?: string;
+  projects?: Array<{
+    name: string;
+    parent_id?: string;
+    parent_name?: string;
+    color?: string;
+    favorite?: boolean;
+    view_style?: string;
+    sections?: string[];
+  }>;
 } {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "name" in args &&
-    typeof (args as { name: string }).name === "string"
-  );
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("projects" in args && Array.isArray((args as any).projects)) {
+    return (args as any).projects.every((project: any) => 
+      typeof project === "object" && 
+      project !== null && 
+      "name" in project && 
+      typeof project.name === "string"
+    );
+  }
+  
+  // Check if it's a single project operation
+  return "name" in args && typeof (args as any).name === "string";
 }
 
 function isUpdateProjectArgs(args: unknown): args is {
-  project_id: string;
+  project_id?: string;
   name?: string;
   color?: string;
   favorite?: boolean;
+  view_style?: string;
+  projects?: Array<{
+    project_id?: string;
+    project_name?: string;
+    name?: string;
+    color?: string;
+    favorite?: boolean;
+    view_style?: string;
+  }>;
 } {
-  return (
-    typeof args === "object" &&
-    args !== null &&
-    "project_id" in args &&
-    typeof (args as { project_id: string }).project_id === "string"
-  );
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("projects" in args && Array.isArray((args as any).projects)) {
+    return (args as any).projects.every((project: any) => 
+      typeof project === "object" && 
+      project !== null && 
+      (("project_id" in project && typeof project.project_id === "string") || 
+       ("project_name" in project && typeof project.project_name === "string"))
+    );
+  }
+  
+  // Check if it's a single project operation
+  return "project_id" in args && typeof (args as any).project_id === "string";
 }
 
 function isGetProjectSectionsArgs(args: unknown): args is {
-  project_id: string;
+  project_id?: string;
+  project_name?: string;
+  include_empty?: boolean;
+  projects?: Array<{
+    project_id?: string;
+    project_name?: string;
+  }>;
 } {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("projects" in args && Array.isArray((args as any).projects)) {
+    return (args as any).projects.every((project: any) => 
+      typeof project === "object" && 
+      project !== null && 
+      (("project_id" in project && typeof project.project_id === "string") || 
+       ("project_name" in project && typeof project.project_name === "string"))
+    );
+  }
+  
+  // Check if it's a single project operation
   return (
-    typeof args === "object" &&
-    args !== null &&
-    "project_id" in args &&
-    typeof (args as { project_id: string }).project_id === "string"
+    ("project_id" in args && typeof (args as any).project_id === "string") ||
+    ("project_name" in args && typeof (args as any).project_name === "string")
   );
 }
 
-function isCreateSectionArgs(args: unknown): args is {
-  project_id: string;
-  name: string;
+function isCreateProjectSectionArgs(args: unknown): args is {
+  project_id?: string;
+  project_name?: string;
+  name?: string;
   order?: number;
+  sections?: Array<{
+    project_id?: string;
+    project_name?: string;
+    name: string;
+    order?: number;
+  }>;
 } {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("sections" in args && Array.isArray((args as any).sections)) {
+    return (args as any).sections.every((section: any) => 
+      typeof section === "object" && 
+      section !== null && 
+      "name" in section && 
+      typeof section.name === "string" &&
+      (
+        (section.project_id === undefined || typeof section.project_id === "string") &&
+        (section.project_name === undefined || typeof section.project_name === "string") &&
+        (section.order === undefined || typeof section.order === "number") &&
+        (section.project_id !== undefined || section.project_name !== undefined)
+      )
+    );
+  }
+  
+  // Check if it's a single section operation
   return (
-    typeof args === "object" &&
-    args !== null &&
-    "project_id" in args &&
-    "name" in args &&
-    typeof (args as { project_id: string; name: string }).project_id === "string" &&
-    typeof (args as { project_id: string; name: string }).name === "string"
+    "project_id" in args && 
+    typeof (args as any).project_id === "string" &&
+    "name" in args && 
+    typeof (args as any).name === "string" &&
+    ((args as any).order === undefined || typeof (args as any).order === "number")
   );
 }
 
@@ -995,16 +1485,41 @@ function isGetPersonalLabelsArgs(args: unknown): args is {} {
 }
 
 function isCreatePersonalLabelArgs(args: unknown): args is {
-  name: string;
+  name?: string;
   color?: string;
   order?: number;
   is_favorite?: boolean;
+  labels?: Array<{
+    name: string;
+    color?: string;
+    order?: number;
+    is_favorite?: boolean;
+  }>;
 } {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("labels" in args && Array.isArray((args as any).labels)) {
+    return (args as any).labels.every((label: any) => 
+      typeof label === "object" && 
+      label !== null && 
+      "name" in label && 
+      typeof label.name === "string" &&
+      (label.color === undefined || typeof label.color === "string") &&
+      (label.order === undefined || typeof label.order === "number") &&
+      (label.is_favorite === undefined || typeof label.is_favorite === "boolean")
+    );
+  }
+  
+  // Check if it's a single label operation
   return (
-    typeof args === "object" &&
-    args !== null &&
-    "name" in args &&
-    typeof (args as { name: string }).name === "string"
+    "name" in args && 
+    typeof (args as any).name === "string" &&
+    ((args as any).color === undefined || typeof (args as any).color === "string") &&
+    ((args as any).order === undefined || typeof (args as any).order === "number") &&
+    ((args as any).is_favorite === undefined || typeof (args as any).is_favorite === "boolean")
   );
 }
 
@@ -1020,17 +1535,51 @@ function isGetPersonalLabelArgs(args: unknown): args is {
 }
 
 function isUpdatePersonalLabelArgs(args: unknown): args is {
-  label_id: string;
+  label_id?: string;
+  label_name?: string;
   name?: string;
   color?: string;
   order?: number;
   is_favorite?: boolean;
+  labels?: Array<{
+    label_id?: string;
+    label_name?: string;
+    name?: string;
+    color?: string;
+    order?: number;
+    is_favorite?: boolean;
+  }>;
 } {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("labels" in args && Array.isArray((args as any).labels)) {
+    return (args as any).labels.every((label: any) => 
+      typeof label === "object" && 
+      label !== null && 
+      (
+        (label.label_id !== undefined && typeof label.label_id === "string") ||
+        (label.label_name !== undefined && typeof label.label_name === "string")
+      ) &&
+      (label.name === undefined || typeof label.name === "string") &&
+      (label.color === undefined || typeof label.color === "string") &&
+      (label.order === undefined || typeof label.order === "number") &&
+      (label.is_favorite === undefined || typeof label.is_favorite === "boolean")
+    );
+  }
+  
+  // Check if it's a single label operation
   return (
-    typeof args === "object" &&
-    args !== null &&
-    "label_id" in args &&
-    typeof (args as { label_id: string }).label_id === "string"
+    (
+      ("label_id" in args && typeof (args as any).label_id === "string") ||
+      ("label_name" in args && typeof (args as any).label_name === "string")
+    ) &&
+    ((args as any).name === undefined || typeof (args as any).name === "string") &&
+    ((args as any).color === undefined || typeof (args as any).color === "string") &&
+    ((args as any).order === undefined || typeof (args as any).order === "number") &&
+    ((args as any).is_favorite === undefined || typeof (args as any).is_favorite === "boolean")
   );
 }
 
@@ -1045,21 +1594,125 @@ function isDeletePersonalLabelArgs(args: unknown): args is {
   );
 }
 
-function isUpdateTaskLabelsArgs(args: unknown): args is {
-  task_name: string;
-  labels: string[];
+// Shared Label Tools Typeguards
+
+function isGetSharedLabelsArgs(args: unknown): args is {
+  omit_personal?: boolean;
 } {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
   return (
-    typeof args === "object" &&
-    args !== null &&
-    "task_name" in args &&
-    "labels" in args &&
-    typeof (args as { task_name: string }).task_name === "string" &&
-    Array.isArray((args as { labels: string[] }).labels)
+    !("omit_personal" in args) || 
+    typeof (args as any).omit_personal === "boolean"
   );
 }
 
-// Tool handlers
+function isRenameSharedLabelsArgs(args: unknown): args is {
+  name?: string;
+  new_name?: string;
+  labels?: Array<{
+    name: string;
+    new_name: string;
+  }>;
+} {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("labels" in args && Array.isArray((args as any).labels)) {
+    return (args as any).labels.every((label: any) => 
+      typeof label === "object" && 
+      label !== null && 
+      "name" in label && 
+      typeof label.name === "string" &&
+      "new_name" in label && 
+      typeof label.new_name === "string"
+    );
+  }
+  
+  // Check if it's a single label operation
+  return (
+    "name" in args && 
+    typeof (args as any).name === "string" &&
+    "new_name" in args && 
+    typeof (args as any).new_name === "string"
+  );
+}
+
+function isRemoveSharedLabelsArgs(args: unknown): args is {
+  name?: string;
+  labels?: Array<{
+    name: string;
+  }>;
+} {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("labels" in args && Array.isArray((args as any).labels)) {
+    return (args as any).labels.every((label: any) => 
+      typeof label === "object" && 
+      label !== null && 
+      "name" in label && 
+      typeof label.name === "string"
+    );
+  }
+  
+  // Check if it's a single label operation
+  return (
+    "name" in args && 
+    typeof (args as any).name === "string"
+  );
+}
+
+// Task Label Typeguard
+
+function isUpdateTaskLabelsArgs(args: unknown): args is {
+  task_id?: string;
+  task_name?: string;
+  labels?: string[];
+  tasks?: Array<{
+    task_id?: string;
+    task_name?: string;
+    labels: string[];
+  }>;
+} {
+  if (typeof args !== "object" || args === null) {
+    return false;
+  }
+  
+  // Check if it's a batch operation
+  if ("tasks" in args && Array.isArray((args as any).tasks)) {
+    return (args as any).tasks.every((task: any) => 
+      typeof task === "object" && 
+      task !== null && 
+      "labels" in task && 
+      Array.isArray(task.labels) &&
+      (
+        (task.task_id === undefined || typeof task.task_id === "string") &&
+        (task.task_name === undefined || typeof task.task_name === "string") &&
+        (task.task_id !== undefined || task.task_name !== undefined)
+      )
+    );
+  }
+  
+  // Check if it's a single task operation
+  return (
+    "labels" in args && 
+    Array.isArray((args as any).labels) &&
+    (
+      (("task_id" in args) && typeof (args as any).task_id === "string") ||
+      (("task_name" in args) && typeof (args as any).task_name === "string")
+    )
+  );
+}
+
+// List tools Schema
+
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     CREATE_TASK_TOOL,
@@ -1071,105 +1724,27 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     CREATE_PROJECT_TOOL,
     UPDATE_PROJECT_TOOL,
     GET_PROJECT_SECTIONS_TOOL,
-    CREATE_SECTION_TOOL,
+    CREATE_PROJECT_SECTION_TOOL,
     GET_PERSONAL_LABELS_TOOL,
     CREATE_PERSONAL_LABEL_TOOL,
     GET_PERSONAL_LABEL_TOOL,
     UPDATE_PERSONAL_LABEL_TOOL,
     DELETE_PERSONAL_LABEL_TOOL,
+    GET_SHARED_LABELS_TOOL,
+    RENAME_SHARED_LABELS_TOOL,
+    REMOVE_SHARED_LABELS_TOOL,
     UPDATE_TASK_LABELS_TOOL
   ],
 }));
 
+// All Tool handlers
+
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const { name, arguments: args } = request.params;
-    // Original MCP handlers.
+
     if (!args) {
       throw new Error("No arguments provided");
-    }
-    // Project Handlers
-    if (name === "todoist_get_projects") {
-      if (!isGetProjectsArgs(args)) {
-        throw new Error("Invalid arguments for todoist_get_projects");
-      }
-      const projects = await todoistClient.getProjects();
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify(projects, null, 2)
-        }],
-        isError: false,
-      };
-    }
-
-    if (name === "todoist_create_project") {
-      if (!isCreateProjectArgs(args)) {
-        throw new Error("Invalid arguments for todoist_create_project");
-      }
-      const project = await todoistClient.addProject({
-        name: args.name,
-        parentId: args.parent_id,
-        color: args.color,
-        isFavorite: args.favorite
-      });
-      return {
-        content: [{
-          type: "text",
-          text: `Project created:\n${JSON.stringify(project, null, 2)}`
-        }],
-        isError: false,
-      };
-    }
-
-    if (name === "todoist_update_project") {
-      if (!isUpdateProjectArgs(args)) {
-        throw new Error("Invalid arguments for todoist_update_project");
-      }
-      const project = await todoistClient.updateProject(args.project_id, {
-        name: args.name,
-        color: args.color,
-        isFavorite: args.favorite
-      });
-      return {
-        content: [{
-          type: "text",
-          text: `Project updated:\n${JSON.stringify(project, null, 2)}`
-        }],
-        isError: false,
-      };
-    }
-
-    if (name === "todoist_get_project_sections") {
-      if (!isGetProjectSectionsArgs(args)) {
-        throw new Error("Invalid arguments for todoist_get_project_sections");
-      }
-      const sections = await todoistClient.getSections(args.project_id);
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify(sections, null, 2)
-        }],
-        isError: false,
-      };
-    }
-
-    if (name === "todoist_create_section") {
-      if (!isCreateSectionArgs(args)) {
-        throw new Error("Invalid arguments for todoist_create_section");
-      }
-      const section = await todoistClient.addSection({
-        projectId: args.project_id,
-        name: args.name,
-        order: args.order
-      });
-      return {
-        content: [{
-          type: "text",
-          text: `Section created:\n${JSON.stringify(section, null, 2)}`
-        }],
-        isError: false,
-      };
     }
 
     // Task Handlers    
@@ -1864,7 +2439,668 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
     }
 
-    // Label Management Handlers
+    // Project Handlers
+
+    if (name === "todoist_get_projects") {
+      if (!isGetProjectsArgs(args)) {
+        throw new Error("Invalid arguments for todoist_get_projects");
+      }
+    
+      try {
+        // Get all projects in a single API call
+        const projects = await todoistClient.getProjects();
+        
+        // Create a response object
+        const response: any = {
+          success: true,
+          projects: projects
+        };
+    
+        // Handle specific project IDs if provided
+        if (args.project_ids && args.project_ids.length > 0) {
+          response.projects = projects.filter(project => 
+            args.project_ids!.includes(project.id)
+          );
+        }
+    
+        // Add section information if requested
+        if (args.include_sections) {
+          const projectSections = await Promise.all(
+            response.projects.map(async (project: any) => {
+              try {
+                const sections = await todoistClient.getSections(project.id);
+                return {
+                  ...project,
+                  sections: sections
+                };
+              } catch (error) {
+                return {
+                  ...project,
+                  sections: [],
+                  sections_error: error instanceof Error ? error.message : String(error)
+                };
+              }
+            })
+          );
+          response.projects = projectSections;
+        }
+    
+        // Add hierarchy information if requested
+        if (args.include_hierarchy) {
+          // Create a map for quick project lookup
+          const projectMap = new Map();
+          response.projects.forEach((project: any) => {
+            projectMap.set(project.id, {
+              ...project,
+              children: []
+            });
+          });
+    
+          // Build the hierarchy
+          const rootProjects: any[] = [];
+          response.projects.forEach((project: any) => {
+            const projectWithHierarchy = projectMap.get(project.id);
+            
+            if (project.parentId) {
+              const parent = projectMap.get(project.parentId);
+              if (parent) {
+                parent.children.push(projectWithHierarchy);
+              } else {
+                rootProjects.push(projectWithHierarchy);
+              }
+            } else {
+              rootProjects.push(projectWithHierarchy);
+            }
+          });
+    
+          response.hierarchy = rootProjects;
+        }
+    
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(response, null, 2)
+          }],
+          isError: false,
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true,
+        };
+      }
+    }
+
+    if (name === "todoist_create_project") {
+      if (!isCreateProjectArgs(args)) {
+        throw new Error("Invalid arguments for todoist_create_project");
+      }
+    
+      try {
+        // Handle batch project creation
+        if (args.projects && args.projects.length > 0) {
+          // First get all existing projects to handle parent_name references
+          const existingProjects = await todoistClient.getProjects();
+          const projectNameToIdMap = new Map<string, string>();
+          existingProjects.forEach(project => {
+            projectNameToIdMap.set(project.name.toLowerCase(), project.id);
+          });
+          
+          // Keep track of newly created projects as well
+          const newProjectMap = new Map<string, string>();
+          
+          const results = await Promise.all(args.projects.map(async (projectData) => {
+            try {
+              // Determine parent ID from name or ID
+              let parentId = projectData.parent_id;
+              
+              if (!parentId && projectData.parent_name) {
+                // Look for parent in existing projects
+                parentId = projectNameToIdMap.get(projectData.parent_name.toLowerCase());
+                
+                // Or look in newly created projects
+                if (!parentId) {
+                  parentId = newProjectMap.get(projectData.parent_name.toLowerCase());
+                }
+                
+                if (!parentId) {
+                  return {
+                    success: false,
+                    error: `Parent project not found: ${projectData.parent_name}`,
+                    projectData
+                  };
+                }
+              }
+              
+              // Create the project
+              const projectParams: any = {
+                name: projectData.name,
+                color: projectData.color,
+                viewStyle: projectData.view_style
+              };
+              
+              if (parentId) {
+                projectParams.parentId = parentId;
+              }
+              
+              if (projectData.favorite !== undefined) {
+                projectParams.isFavorite = projectData.favorite;
+              }
+              
+              const project = await todoistClient.addProject(projectParams);
+              
+              // Save to our map for potential children
+              newProjectMap.set(project.name.toLowerCase(), project.id);
+              
+              // Create sections if specified
+              const sections: Array<any> = []; // Fix: Explicitly define the type
+              if (projectData.sections && projectData.sections.length > 0) {
+                for (const sectionName of projectData.sections) {
+                  try {
+                    const section = await todoistClient.addSection({
+                      name: sectionName,
+                      projectId: project.id
+                    });
+                    sections.push(section);
+                  } catch (error) {
+                    sections.push({
+                      name: sectionName,
+                      error: error instanceof Error ? error.message : String(error)
+                    });
+                  }
+                }
+              }
+              
+              return {
+                success: true,
+                project,
+                sections: sections.length > 0 ? sections : undefined
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                projectData
+              };
+            }
+          }));
+          
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.projects.length,
+                summary: {
+                  total: args.projects.length,
+                  succeeded: successCount,
+                  failed: args.projects.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.projects.length
+          };
+        }
+        // Handle single project creation (backward compatibility)
+        else {
+          const projectParams: any = {
+            name: args.name,
+            parentId: args.parent_id,
+            color: args.color
+          };
+          
+          if (args.view_style) {
+            projectParams.viewStyle = args.view_style;
+          }
+          
+          if (args.favorite !== undefined) {
+            projectParams.isFavorite = args.favorite;
+          }
+          
+          const project = await todoistClient.addProject(projectParams);
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                project
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
+    }
+
+    if (name === "todoist_update_project") {
+      if (!isUpdateProjectArgs(args)) {
+        throw new Error("Invalid arguments for todoist_update_project");
+      }
+    
+      try {
+        // Handle batch project update
+        if (args.projects && args.projects.length > 0) {
+          // Get all projects to find by name if needed
+          const allProjects = await todoistClient.getProjects();
+          
+          const results = await Promise.all(args.projects.map(async (projectData) => {
+            try {
+              // Determine project ID - either directly provided or find by name
+              let projectId = projectData.project_id;
+              let projectDetails = null;
+              
+              if (!projectId && projectData.project_name) {
+                const matchingProject = allProjects.find(project => 
+                  project.name.toLowerCase().includes(projectData.project_name!.toLowerCase())
+                );
+                
+                if (!matchingProject) {
+                  return {
+                    success: false,
+                    error: `Project not found: ${projectData.project_name}`,
+                    projectData
+                  };
+                }
+                
+                projectId = matchingProject.id;
+                projectDetails = matchingProject;
+              } else if (projectId) {
+                projectDetails = allProjects.find(p => p.id === projectId);
+              }
+              
+              if (!projectId) {
+                return {
+                  success: false,
+                  error: "Either project_id or project_name must be provided",
+                  projectData
+                };
+              }
+    
+              // Build update parameters
+              const updateData: any = {};
+              if (projectData.name !== undefined) updateData.name = projectData.name;
+              if (projectData.color !== undefined) updateData.color = projectData.color;
+              if (projectData.favorite !== undefined) updateData.isFavorite = projectData.favorite;
+              if (projectData.view_style !== undefined) updateData.viewStyle = projectData.view_style;
+    
+              // Perform the update
+              const updatedProject = await todoistClient.updateProject(projectId, updateData);
+              
+              return {
+                success: true,
+                project_id: projectId,
+                original_name: projectDetails?.name || "Unknown",
+                updated: updatedProject
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                projectData
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.projects.length,
+                summary: {
+                  total: args.projects.length,
+                  succeeded: successCount,
+                  failed: args.projects.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.projects.length
+          };
+        }
+        // Process single project update (backward compatibility)
+        else {
+          // Build update data
+          const updateData: any = {};
+          if (args.name !== undefined) updateData.name = args.name;
+          if (args.color !== undefined) updateData.color = args.color;
+          if (args.favorite !== undefined) updateData.isFavorite = args.favorite;
+          if (args.view_style !== undefined) updateData.viewStyle = args.view_style;
+    
+          // Perform the update
+          const updatedProject = await todoistClient.updateProject(args.project_id!, updateData);
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                project: updatedProject
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
+    }
+    
+    if (name === "todoist_get_project_sections") {
+      if (!isGetProjectSectionsArgs(args)) {
+        throw new Error("Invalid arguments for todoist_get_project_sections");
+      }
+    
+      try {
+        // Process batch project sections retrieval
+        if (args.projects && args.projects.length > 0) {
+          // Get all projects in one API call to efficiently search by name
+          const allProjects = await todoistClient.getProjects();
+          
+          const results = await Promise.all(args.projects.map(async (projectData) => {
+            try {
+              // Determine project ID - either directly provided or find by name
+              let projectId = projectData.project_id;
+              let projectName = "";
+              
+              if (!projectId && projectData.project_name) {
+                const matchingProject = allProjects.find(project => 
+                  project.name.toLowerCase().includes(projectData.project_name!.toLowerCase())
+                );
+                
+                if (!matchingProject) {
+                  return {
+                    success: false,
+                    error: `Project not found: ${projectData.project_name}`,
+                    project_name: projectData.project_name
+                  };
+                }
+                
+                projectId = matchingProject.id;
+                projectName = matchingProject.name;
+              }
+              
+              if (!projectId) {
+                return {
+                  success: false,
+                  error: "Either project_id or project_name must be provided",
+                  projectData
+                };
+              }
+    
+              // Get all sections for this project
+              const sections = await todoistClient.getSections(projectId);
+              
+              // Optionally get tasks for each section to determine if empty
+              let sectionsWithTaskCount = sections;
+              if (args.include_empty === false) {
+                const projectTasks = await todoistClient.getTasks({ projectId });
+                
+                sectionsWithTaskCount = sections.filter(section => {
+                  const sectionTasks = projectTasks.filter(task => task.sectionId === section.id);
+                  return sectionTasks.length > 0;
+                });
+              }
+              
+              return {
+                success: true,
+                project_id: projectId,
+                project_name: projectName || `Project ID: ${projectId}`,
+                sections: sectionsWithTaskCount,
+                count: sectionsWithTaskCount.length
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                projectData
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.projects.length,
+                summary: {
+                  total: args.projects.length,
+                  succeeded: successCount,
+                  failed: args.projects.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.projects.length
+          };
+        }
+        // Process single project sections retrieval
+        else {
+          // Determine project ID - either directly provided or find by name
+          let projectId = args.project_id;
+          let projectName = "";
+          
+          if (!projectId && args.project_name) {
+            const projects = await todoistClient.getProjects();
+            const matchingProject = projects.find(project => 
+              project.name.toLowerCase().includes(args.project_name!.toLowerCase())
+            );
+            
+            if (!matchingProject) {
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: `Project not found: ${args.project_name}`
+                  }, null, 2)
+                }],
+                isError: true
+              };
+            }
+            
+            projectId = matchingProject.id;
+            projectName = matchingProject.name;
+          }
+          
+          if (!projectId) {
+            throw new Error("Either project_id or project_name must be provided");
+          }
+    
+          // Get all sections for this project
+          const sections = await todoistClient.getSections(projectId);
+          
+          // Optionally filter empty sections
+          let sectionsResult = sections;
+          if (args.include_empty === false) {
+            const projectTasks = await todoistClient.getTasks({ projectId });
+            
+            sectionsResult = sections.filter(section => {
+              const sectionTasks = projectTasks.filter(task => task.sectionId === section.id);
+              return sectionTasks.length > 0;
+            });
+          }
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                project_id: projectId,
+                project_name: projectName || undefined,
+                sections: sectionsResult,
+                count: sectionsResult.length
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
+    }
+
+    if (name === "todoist_create_project_section") {
+      if (!isCreateProjectSectionArgs(args)) {
+        throw new Error("Invalid arguments for todoist_create_project_section");
+      }
+    
+      try {
+        // Handle batch section creation
+        if (args.sections && args.sections.length > 0) {
+          // Get all projects in one API call to efficiently search by name if needed
+          const allProjects = await todoistClient.getProjects();
+          const projectNameToIdMap = new Map<string, string>();
+          
+          allProjects.forEach(project => {
+            projectNameToIdMap.set(project.name.toLowerCase(), project.id);
+          });
+          
+          const results = await Promise.all(args.sections.map(async (sectionData) => {
+            try {
+              // Determine project ID - either directly provided or find by name
+              let projectId = sectionData.project_id;
+              let projectName = "";
+              
+              if (!projectId && sectionData.project_name) {
+                const matchingProject = allProjects.find(project => 
+                  project.name.toLowerCase().includes(sectionData.project_name!.toLowerCase())
+                );
+                
+                if (!matchingProject) {
+                  return {
+                    success: false,
+                    error: `Project not found: ${sectionData.project_name}`,
+                    section_name: sectionData.name
+                  };
+                }
+                
+                projectId = matchingProject.id;
+                projectName = matchingProject.name;
+              }
+              
+              if (!projectId) {
+                return {
+                  success: false,
+                  error: "Either project_id or project_name must be provided",
+                  section_name: sectionData.name
+                };
+              }
+    
+              // Create the section
+              const section = await todoistClient.addSection({
+                projectId: projectId,
+                name: sectionData.name,
+                order: sectionData.order
+              });
+              
+              return {
+                success: true,
+                section,
+                project_name: projectName || undefined
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                section_data: sectionData
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.sections.length,
+                summary: {
+                  total: args.sections.length,
+                  succeeded: successCount,
+                  failed: args.sections.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.sections.length
+          };
+        }
+        // Process single section creation (backward compatibility)
+        else {
+          const section = await todoistClient.addSection({
+            projectId: args.project_id!,
+            name: args.name!,
+            order: args.order
+          });
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                section
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
+    }
+
+    // Personal Label Handlers
 
     if (name === "todoist_get_personal_labels") {
       if (!isGetPersonalLabelsArgs(args)) {
@@ -1884,19 +3120,83 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (!isCreatePersonalLabelArgs(args)) {
         throw new Error("Invalid arguments for todoist_create_personal_label");
       }
-      const label = await todoistClient.addLabel({
-        name: args.name,
-        color: args.color,
-        order: args.order,
-        isFavorite: args.is_favorite
-      });
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Label created:\n${JSON.stringify(label, null, 2)}`
-        }],
-        isError: false,
-      };
+    
+      try {
+        // Handle batch label creation
+        if (args.labels && args.labels.length > 0) {
+          const results = await Promise.all(args.labels.map(async (labelData) => {
+            try {
+              // Create the label
+              const label = await todoistClient.addLabel({
+                name: labelData.name,
+                color: labelData.color,
+                order: labelData.order,
+                isFavorite: labelData.is_favorite
+              });
+              
+              return {
+                success: true,
+                label
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                label_name: labelData.name
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.labels.length,
+                summary: {
+                  total: args.labels.length,
+                  succeeded: successCount,
+                  failed: args.labels.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.labels.length
+          };
+        }
+        // Handle single label creation (backward compatibility)
+        else {
+          const label = await todoistClient.addLabel({
+            name: args.name!,
+            color: args.color,
+            order: args.order,
+            isFavorite: args.is_favorite
+          });
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                label
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
     }
 
     if (name === "todoist_get_personal_label") {
@@ -1917,19 +3217,150 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (!isUpdatePersonalLabelArgs(args)) {
         throw new Error("Invalid arguments for todoist_update_personal_label");
       }
-      const label = await todoistClient.updateLabel(args.label_id, {
-        name: args.name,
-        color: args.color,
-        order: args.order,
-        isFavorite: args.is_favorite
-      });
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Label updated:\n${JSON.stringify(label, null, 2)}`
-        }],
-        isError: false,
-      };
+    
+      try {
+        // Handle batch label updates
+        if (args.labels && args.labels.length > 0) {
+          // Get all labels in one API call to efficiently search by name
+          const allLabels = await todoistClient.getLabels();
+          
+          const results = await Promise.all(args.labels.map(async (labelData) => {
+            try {
+              // Determine label ID - either directly provided or find by name
+              let labelId = labelData.label_id;
+              let labelName = '';
+              
+              if (!labelId && labelData.label_name) {
+                const matchingLabel = allLabels.find(label => 
+                  label.name.toLowerCase() === labelData.label_name!.toLowerCase()
+                );
+                
+                if (!matchingLabel) {
+                  return {
+                    success: false,
+                    error: `Label not found: ${labelData.label_name}`,
+                    label_name: labelData.label_name
+                  };
+                }
+                
+                labelId = matchingLabel.id;
+                labelName = matchingLabel.name;
+              }
+              
+              if (!labelId) {
+                return {
+                  success: false,
+                  error: "Either label_id or label_name must be provided",
+                  labelData
+                };
+              }
+    
+              // Build update parameters
+              const updateData: any = {};
+              if (labelData.name !== undefined) updateData.name = labelData.name;
+              if (labelData.color !== undefined) updateData.color = labelData.color;
+              if (labelData.order !== undefined) updateData.order = labelData.order;
+              if (labelData.is_favorite !== undefined) updateData.isFavorite = labelData.is_favorite;
+    
+              // Update the label
+              const updatedLabel = await todoistClient.updateLabel(labelId, updateData);
+              
+              return {
+                success: true,
+                label: updatedLabel,
+                original_name: labelName || undefined
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                labelData
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.labels.length,
+                summary: {
+                  total: args.labels.length,
+                  succeeded: successCount,
+                  failed: args.labels.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.labels.length
+          };
+        }
+        // Handle single label update (backward compatibility)
+        else {
+          // Determine label ID - either directly provided or find by name
+          let labelId = args.label_id;
+          
+          if (!labelId && args.label_name) {
+            const labels = await todoistClient.getLabels();
+            const matchingLabel = labels.find(label => 
+              label.name.toLowerCase() === args.label_name!.toLowerCase()
+            );
+            
+            if (!matchingLabel) {
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: `Label not found: ${args.label_name}`
+                  }, null, 2)
+                }],
+                isError: true
+              };
+            }
+            
+            labelId = matchingLabel.id;
+          }
+          
+          if (!labelId) {
+            throw new Error("Either label_id or label_name must be provided");
+          }
+    
+          // Build update parameters
+          const updateData: any = {};
+          if (args.name !== undefined) updateData.name = args.name;
+          if (args.color !== undefined) updateData.color = args.color;
+          if (args.order !== undefined) updateData.order = args.order;
+          if (args.is_favorite !== undefined) updateData.isFavorite = args.is_favorite;
+    
+          // Update the label
+          const updatedLabel = await todoistClient.updateLabel(labelId, updateData);
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                label: updatedLabel
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
     }
 
     if (name === "todoist_delete_personal_label") {
@@ -1945,43 +3376,348 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         isError: false,
       };
     }
+    
+    // Shared Label Handlers
+
+    if (name === "todoist_get_shared_labels") {
+      if (!isGetSharedLabelsArgs(args)) {
+        throw new Error("Invalid arguments for todoist_get_shared_labels");
+      }
+    
+      try {
+        const sharedLabels = await todoistClient.getSharedLabels({
+          omitPersonal: args.omit_personal
+        });
+        
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              shared_labels: sharedLabels,
+              count: sharedLabels.length
+            }, null, 2)
+          }],
+          isError: false
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
+    }
+
+    if (name === "todoist_rename_shared_labels") {
+      if (!isRenameSharedLabelsArgs(args)) {
+        throw new Error("Invalid arguments for todoist_rename_shared_labels");
+      }
+    
+      try {
+        // Handle batch label renaming
+        if (args.labels && args.labels.length > 0) {
+          const results = await Promise.all(args.labels.map(async (labelData) => {
+            try {
+              // Rename the shared label
+              await todoistClient.renameSharedLabel({
+                name: labelData.name,
+                newName: labelData.new_name
+              });
+              
+              return {
+                success: true,
+                old_name: labelData.name,
+                new_name: labelData.new_name
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                label_name: labelData.name
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.labels.length,
+                summary: {
+                  total: args.labels.length,
+                  succeeded: successCount,
+                  failed: args.labels.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.labels.length
+          };
+        }
+        // Handle single label renaming (backward compatibility)
+        else {
+          await todoistClient.renameSharedLabel({
+            name: args.name!,
+            newName: args.new_name!
+          });
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                message: `Successfully renamed shared label "${args.name}" to "${args.new_name}"`
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
+    }
+
+    if (name === "todoist_remove_shared_labels") {
+      if (!isRemoveSharedLabelsArgs(args)) {
+        throw new Error("Invalid arguments for todoist_remove_shared_labels");
+      }
+    
+      try {
+        // Handle batch label removal
+        if (args.labels && args.labels.length > 0) {
+          const results = await Promise.all(args.labels.map(async (labelData) => {
+            try {
+              // Remove the shared label
+              await todoistClient.removeSharedLabel({
+                name: labelData.name
+              });
+              
+              return {
+                success: true,
+                label_name: labelData.name
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                label_name: labelData.name
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.labels.length,
+                summary: {
+                  total: args.labels.length,
+                  succeeded: successCount,
+                  failed: args.labels.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.labels.length
+          };
+        }
+        // Handle single label removal (backward compatibility)
+        else {
+          await todoistClient.removeSharedLabel({
+            name: args.name!
+          });
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                message: `Successfully removed all instances of shared label "${args.name}"`
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
+          }],
+          isError: true
+        };
+      }
+    }
+
+    // Task Label Handler
 
     if (name === "todoist_update_task_labels") {
       if (!isUpdateTaskLabelsArgs(args)) {
         throw new Error("Invalid arguments for todoist_update_task_labels");
       }
     
-      // First, search for the task
-      const tasks = await todoistClient.getTasks();
-      const matchingTask = tasks.find(task => 
-        task.content.toLowerCase().includes(args.task_name.toLowerCase())
-      );
+      try {
+        // Process batch label updates
+        if (args.tasks && args.tasks.length > 0) {
+          // Get all tasks in one API call to efficiently search by name
+          const allTasks = await todoistClient.getTasks();
+          
+          const results = await Promise.all(args.tasks.map(async (taskData) => {
+            try {
+              // Determine task ID - either directly provided or find by name
+              let taskId = taskData.task_id;
+              let taskContent = '';
+              
+              if (!taskId && taskData.task_name) {
+                const matchingTask = allTasks.find(task => 
+                  task.content.toLowerCase().includes(taskData.task_name!.toLowerCase())
+                );
+                
+                if (!matchingTask) {
+                  return {
+                    success: false,
+                    error: `Task not found: ${taskData.task_name}`,
+                    task_name: taskData.task_name
+                  };
+                }
+                
+                taskId = matchingTask.id;
+                taskContent = matchingTask.content;
+              }
+              
+              if (!taskId) {
+                return {
+                  success: false,
+                  error: "Either task_id or task_name must be provided",
+                  taskData
+                };
+              }
     
-      if (!matchingTask) {
+              // Update the task labels
+              await todoistClient.updateTask(taskId, {
+                labels: taskData.labels
+              });
+              
+              return {
+                success: true,
+                task_id: taskId,
+                content: taskContent || `Task ID: ${taskId}`,
+                labels: taskData.labels
+              };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                taskData
+              };
+            }
+          }));
+    
+          const successCount = results.filter(r => r.success).length;
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: successCount === args.tasks.length,
+                summary: {
+                  total: args.tasks.length,
+                  succeeded: successCount,
+                  failed: args.tasks.length - successCount
+                },
+                results
+              }, null, 2)
+            }],
+            isError: successCount < args.tasks.length
+          };
+        }
+        // Process single task label update (backward compatibility)
+        else {
+          // Determine task ID - either directly provided or find by name
+          let taskId = args.task_id;
+          let taskContent = '';
+          
+          if (!taskId && args.task_name) {
+            const tasks = await todoistClient.getTasks();
+            const matchingTask = tasks.find(task => 
+              task.content.toLowerCase().includes(args.task_name!.toLowerCase())
+            );
+            
+            if (!matchingTask) {
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: `Task not found: ${args.task_name}`
+                  }, null, 2)
+                }],
+                isError: true
+              };
+            }
+            
+            taskId = matchingTask.id;
+            taskContent = matchingTask.content;
+          }
+          
+          if (!taskId) {
+            throw new Error("Either task_id or task_name must be provided");
+          }
+    
+          // Update the task labels
+          await todoistClient.updateTask(taskId, {
+            labels: args.labels
+          });
+          
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                task_id: taskId,
+                content: taskContent || `Task ID: ${taskId}`,
+                labels: args.labels
+              }, null, 2)
+            }],
+            isError: false
+          };
+        }
+      } catch (error) {
         return {
-          content: [{ 
-            type: "text", 
-            text: `Could not find a task matching "${args.task_name}"` 
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }, null, 2)
           }],
-          isError: true,
+          isError: true
         };
       }
-    
-      // Update the task's labels
-      const updatedTask = await todoistClient.updateTask(matchingTask.id, {
-        labels: args.labels
-      });
-
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Labels updated for task "${matchingTask.content}":\n${JSON.stringify(updatedTask, null, 2)}` 
-        }],
-        isError: false,
-      };
     }
-
-
+    
     return {
       content: [{ type: "text", text: `Unknown tool: ${name}` }],
       isError: true,
@@ -1998,6 +3734,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
   }
 });
+
+// async functions
 
 async function runServer() {
   const transport = new StdioServerTransport();
