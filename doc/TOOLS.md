@@ -1,6 +1,190 @@
 # Todoist MCP Server Tools
 
-This document describes the available tools in the Todoist MCP Server. These tools allow interacting with Todoist projects, sections, tasks, labels, and shared labels.
+This document describes the available tools in the Todoist MCP Server. These tools allow Claude to interact with your Todoist account to manage projects, sections, tasks, and labels.
+
+## Task Tools
+
+### todoist_create_task
+
+Create one or more tasks in Todoist with full parameter support.
+
+#### Single Task Format
+
+- `content` (string, required): The content/title of the task
+- `description` (string): Detailed description of the task
+- `project_id` (string): ID of the project to add the task to
+- `section_id` (string): ID of the section to add the task to
+- `parent_id` (string): ID of the parent task for subtasks
+- `order` (number): Position in the project or parent task
+- `labels` (array of strings): Array of label names to apply to the task
+- `priority` (number): Task priority from 1 (normal) to 4 (urgent)
+- `due_string` (string): Natural language due date like 'tomorrow', 'next Monday'
+- `due_date` (string): Due date in YYYY-MM-DD format
+- `due_datetime` (string): Due date and time in RFC3339 format
+- `due_lang` (string): 2-letter language code for due date parsing
+- `assignee_id` (string): User ID to assign the task to
+- `duration` (number): The duration amount of the task
+- `duration_unit` (string): The duration unit ('minute' or 'day')
+- `deadline_date` (string): Deadline date in YYYY-MM-DD format
+- `deadline_lang` (string): 2-letter language code for deadline parsing
+
+#### Batch Format
+
+- `tasks` (array): Array of task objects, each containing the same parameters as above
+
+#### Example
+
+```json
+{
+  "content": "Buy groceries",
+  "priority": 2,
+  "due_string": "tomorrow"
+}
+```
+
+Or for batch operations:
+
+```json
+{
+  "tasks": [
+    {
+      "content": "Buy milk",
+      "project_id": "2203306141"
+    },
+    {
+      "content": "Buy eggs",
+      "project_id": "2203306141"
+    }
+  ]
+}
+```
+
+### todoist_get_tasks
+
+Get a list of tasks from Todoist with various filters.
+
+#### Parameters
+
+- `project_id` (string): Filter tasks by project ID
+- `section_id` (string): Filter tasks by section ID
+- `label` (string): Filter tasks by label name
+- `filter` (string): Natural language filter like 'today', 'tomorrow', 'next week', 'priority 1', 'overdue'
+- `lang` (string): IETF language tag defining what language filter is written in
+- `ids` (array of strings): Array of specific task IDs to retrieve
+- `priority` (number): Filter by priority level (1-4)
+- `limit` (number, default 10): Maximum number of tasks to return
+
+#### Example
+
+```json
+{
+  "filter": "today",
+  "priority": 4
+}
+```
+
+### todoist_update_task
+
+Update one or more tasks in Todoist.
+
+#### Single Task Format
+
+- `task_id` (string, preferred): ID of the task to update
+- `task_name` (string): Name/content of the task to search for (if ID not provided)
+- `content` (string): New content/title for the task
+- `description` (string): New description for the task
+- `project_id` (string): Move task to this project ID
+- `section_id` (string): Move task to this section ID
+- `labels` (array of strings): New array of label names for the task
+- `priority` (number): New priority level from 1 (normal) to 4 (urgent)
+- `due_string` (string): New due date in natural language
+- `due_date` (string): New due date in YYYY-MM-DD format
+- `due_datetime` (string): New due date and time in RFC3339 format
+- `due_lang` (string): 2-letter language code for due date parsing
+- `assignee_id` (string): New user ID to assign the task to
+- `duration` (number): New duration amount of the task
+- `duration_unit` (string): New duration unit ('minute' or 'day')
+- `deadline_date` (string): New deadline date in YYYY-MM-DD format
+- `deadline_lang` (string): 2-letter language code for deadline parsing
+
+#### Batch Format
+
+- `tasks` (array): Array of task objects, each containing a task_id or task_name plus any parameters to update
+
+#### Example
+
+```json
+{
+  "task_id": "2995104339",
+  "due_string": "tomorrow",
+  "priority": 3
+}
+```
+
+### todoist_delete_task
+
+Delete one or more tasks from Todoist.
+
+#### Single Task Format
+
+- `task_id` (string, preferred): ID of the task to delete
+- `task_name` (string): Name/content of the task to search for and delete (if ID not provided)
+
+#### Batch Format
+
+- `tasks` (array): Array of objects with task_id or task_name
+
+#### Example
+
+```json
+{
+  "task_name": "Buy groceries"
+}
+```
+
+### todoist_complete_task
+
+Mark one or more tasks as complete in Todoist.
+
+#### Single Task Format
+
+- `task_id` (string, preferred): ID of the task to complete
+- `task_name` (string): Name/content of the task to search for and complete (if ID not provided)
+
+#### Batch Format
+
+- `tasks` (array): Array of objects with task_id or task_name
+
+#### Example
+
+```json
+{
+  "task_name": "Buy groceries"
+}
+```
+
+### todoist_update_task_labels
+
+Update the labels of one or more tasks in Todoist.
+
+#### Single Task Format
+
+- `task_id` (string, preferred): ID of the task to update labels for
+- `task_name` (string): Name/content of the task to search for and update labels (if ID not provided)
+- `labels` (array of strings, required): Array of label names to set for the task
+
+#### Batch Format
+
+- `tasks` (array): Array of objects with task_id or task_name and labels array
+
+#### Example
+
+```json
+{
+  "task_name": "Buy groceries",
+  "labels": ["Shopping", "Urgent"]
+}
+```
 
 ## Project Tools
 
@@ -8,91 +192,133 @@ This document describes the available tools in the Todoist MCP Server. These too
 
 Get projects with optional filtering and hierarchy information.
 
-- `project_ids` (array of strings, optional): Specific project IDs to retrieve
-- `include_sections` (boolean, optional, default false): Include sections within each project
-- `include_hierarchy` (boolean, optional, default false): Include full parent-child relationships
+#### Parameters
+
+- `project_ids` (array of strings): Specific project IDs to retrieve
+- `include_sections` (boolean, default false): Include sections within each project
+- `include_hierarchy` (boolean, default false): Include full parent-child relationships
+
+#### Example
+
+```json
+{
+  "include_sections": true,
+  "include_hierarchy": true
+}
+```
 
 ### todoist_create_project
 
 Create one or more projects with support for nested hierarchies.
 
-Single project:
+#### Single Project Format
 
 - `name` (string, required): Name of the project
-- `parent_id` (string, optional): Parent project ID
-- `color` (string, optional): Color of the project icon (see Colors guide for options)
-- `favorite` (boolean, optional): Whether the project is a favorite
-- `view_style` (string, optional): View style of the project ('list' or 'board')
+- `parent_id` (string): Parent project ID
+- `color` (string): Color of the project
+- `favorite` (boolean): Whether the project is a favorite
+- `view_style` (string): View style of the project ('list' or 'board')
 
-Batch projects:
+#### Batch Format
 
-- `projects` (array, required): Array of project objects to create, each containing:
+- `projects` (array): Array of project objects with the following properties:
   - `name` (string, required): Name of the project
-  - `parent_id` (string, optional): Parent project ID
-  - `parent_name` (string, optional): Name of the parent project (will be created or found automatically)
-  - `color` (string, optional): Color of the project icon
-  - `favorite` (boolean, optional): Whether the project is a favorite
-  - `view_style` (string, optional): View style of the project ('list' or 'board')
-  - `sections` (array of strings, optional): Sections to create within this project
+  - `parent_id` (string): Parent project ID
+  - `parent_name` (string): Name of the parent project (will be created or found automatically)
+  - `color` (string): Color of the project
+  - `favorite` (boolean): Whether the project is a favorite
+  - `view_style` (string): View style of the project ('list' or 'board')
+  - `sections` (array of strings): Sections to create within this project
 
-### todoist_update_project  
+#### Available Colors
+
+`berry_red`, `red`, `orange`, `yellow`, `olive_green`, `lime_green`, `green`, `mint_green`, `teal`, `sky_blue`, `light_blue`, `blue`, `grape`, `violet`, `lavender`, `magenta`, `salmon`, `charcoal`, `grey`, `taupe`
+
+#### Example
+
+```json
+{
+  "name": "Work Projects",
+  "color": "blue", 
+  "favorite": true
+}
+```
+
+### todoist_update_project
 
 Update one or more projects in Todoist.
 
-Single project:
+#### Single Project Format
 
 - `project_id` (string, required): ID of the project to update
-- `name` (string, optional): New name for the project
-- `color` (string, optional): New color for the project icon
-- `favorite` (boolean, optional): Whether the project should be a favorite
-- `view_style` (string, optional): View style of the project ('list' or 'board')
+- `name` (string): New name for the project
+- `color` (string): New color for the project
+- `favorite` (boolean): Whether the project should be a favorite
+- `view_style` (string): View style of the project ('list' or 'board')
 
-Batch projects:
+#### Batch Format
 
-- `projects` (array, required): Array of project objects to update, each containing:  
-  - `project_id` (string, preferred): ID of the project to update
-  - `project_name` (string): Name of the project to update (if ID not provided)
-  - `name` (string, optional): New name for the project
-  - `color` (string, optional): New color for the project icon
-  - `favorite` (boolean, optional): Whether the project should be a favorite  
-  - `view_style` (string, optional): View style of the project ('list' or 'board')
+- `projects` (array): Array of project objects with project_id or project_name plus parameters to update
+
+#### Example
+
+```json
+{
+  "project_id": "2203306141",
+  "name": "New Project Name",
+  "color": "red"
+}
+```
 
 ### todoist_get_project_sections
 
 Get sections from one or more projects in Todoist.
 
-Single project:
+#### Single Project Format
 
-- `project_id` (string): ID of the project to get sections from  
+- `project_id` (string): ID of the project to get sections from
 - `project_name` (string): Name of the project to get sections from (if ID not provided)
+- `include_empty` (boolean, default true): Whether to include sections with no tasks
 
-Batch projects:
+#### Batch Format
 
-- `projects` (array, required): Array of project objects to get sections from, each containing:
-  - `project_id` (string, preferred): ID of the project
-  - `project_name` (string): Name of the project (if ID not provided)
+- `projects` (array): Array of objects with project_id or project_name
 
-- `include_empty` (boolean, optional, default true): Whether to include sections with no tasks
+#### Example
+
+```json
+{
+  "project_name": "Work Projects",
+  "include_empty": false
+}
+```
 
 ### todoist_create_project_section
 
 Create one or more sections in Todoist projects.
 
-Single section:
+#### Single Section Format
 
-- `project_id` (string, required): ID of the project to create section in
-- `name` (string, required): Name of the section  
-- `order` (number, optional): Order of the section
+- `project_id` (string, required): ID of the project
+- `name` (string, required): Name of the section
+- `order` (number): Order of the section
 
-Batch sections:
+#### Batch Format
 
-- `sections` (array, required): Array of section objects to create, each containing:
-  - `project_id` (string): ID of the project (one of `project_id` or `project_name` required)
-  - `project_name` (string): Name of the project (one of `project_id` or `project_name` required)
+- `sections` (array): Array of section objects with the following properties:
+  - `project_id` (string): ID of the project to create the section in
+  - `project_name` (string): Name of the project to create the section in (if ID not provided)
   - `name` (string, required): Name of the section
-  - `order` (number, optional): Order of the section
+  - `order` (number): Order of the section
 
-## Task Tools
+#### Example
+
+```json
+{
+  "project_id": "2203306141",
+  "name": "Planning"
+}
+```
 
 ## Personal Label Tools
 
@@ -100,59 +326,93 @@ Batch sections:
 
 Get all personal labels from Todoist.
 
+#### Parameters
+
+No parameters required.
+
 ### todoist_create_personal_label
 
 Create one or more personal labels in Todoist.
 
-Single label:
+#### Single Label Format
 
 - `name` (string, required): Name of the label
-- `color` (string, optional): Color of the label icon
-- `order` (number, optional): Order of the label
-- `is_favorite` (boolean, optional): Whether the label is a favorite
+- `color` (string): Color of the label
+- `order` (number): Order of the label
+- `is_favorite` (boolean): Whether the label is a favorite
 
-Batch labels:
+#### Batch Format
 
-- `labels` (array, required): Array of label objects to create, each containing:
-  - `name` (string, required): Name of the label
-  - `color` (string, optional): Color of the label icon
-  - `order` (number, optional): Order of the label
-  - `is_favorite` (boolean, optional): Whether the label is a favorite
+- `labels` (array): Array of label objects with the same properties as above
+
+#### Example
+
+```json
+{
+  "name": "Important",
+  "color": "red",
+  "is_favorite": true
+}
+```
 
 ### todoist_get_personal_label
 
 Get a personal label by ID.
 
+#### Parameters
+
 - `label_id` (string, required): ID of the label to retrieve
+
+#### Example
+
+```json
+{
+  "label_id": "2156154810"
+}
+```
 
 ### todoist_update_personal_label
 
 Update one or more existing personal labels in Todoist.
 
-Single label:
+#### Single Label Format
 
 - `label_id` (string): ID of the label to update
 - `label_name` (string): Name of the label to search for and update (if ID not provided)
-- `name` (string, optional): New name for the label
-- `color` (string, optional): New color for the label icon
-- `order` (number, optional): New order for the label
-- `is_favorite` (boolean, optional): Whether the label is a favorite
+- `name` (string): New name for the label
+- `color` (string): New color for the label
+- `order` (number): New order for the label
+- `is_favorite` (boolean): Whether the label is a favorite
 
-Batch labels:
+#### Batch Format
 
-- `labels` (array, required): Array of label objects to update, each containing:
-  - `label_id` (string, preferred): ID of the label to update
-  - `label_name` (string): Name of label to search for and update (if ID not provided)
-  - `name` (string, optional): New name for the label
-  - `color` (string, optional): New color for the label icon
-  - `order` (number, optional): New order for the label
-  - `is_favorite` (boolean, optional): Whether the label is a favorite
+- `labels` (array): Array of label objects with label_id or label_name plus parameters to update
 
-### todoist_delete_personal_label  
+#### Example
+
+```json
+{
+  "label_name": "Important",
+  "color": "orange",
+  "is_favorite": true
+}
+```
+
+### todoist_delete_personal_label
 
 Delete a personal label from Todoist.
 
+#### Parameters
+
 - `label_id` (string, required): ID of the label to delete
+
+#### Example
+
+```json
+{
+  "label_id": "2156154810"
+}
+```
 
 ## Shared Label Tools
 
@@ -160,51 +420,73 @@ Delete a personal label from Todoist.
 
 Get all shared labels from Todoist.
 
-- `omit_personal` (boolean, optional): Whether to exclude the names of the user's personal labels from the results (default: false)
+#### Parameters
 
-### todoist_rename_shared_labels  
+- `omit_personal` (boolean): Whether to exclude the names of the user's personal labels from the results (default: false)
+
+#### Example
+
+```json
+{
+  "omit_personal": true
+}
+```
+
+### todoist_rename_shared_labels
 
 Rename one or more shared labels in Todoist.
 
-Single label:
+#### Single Label Format
 
 - `name` (string, required): The name of the existing label to rename
 - `new_name` (string, required): The new name for the label
 
-Batch labels:
+#### Batch Format
 
-- `labels` (array, required): Array of label rename operations, each containing:
-  - `name` (string, required): The name of the existing label to rename
-  - `new_name` (string, required): The new name for the label
+- `labels` (array): Array of objects with name and new_name properties
+
+#### Example
+
+```json
+{
+  "name": "OldLabelName",
+  "new_name": "NewLabelName"
+}
+```
 
 ### todoist_remove_shared_labels
 
 Remove one or more shared labels from Todoist tasks.
 
-Single label:
+#### Single Label Format
 
 - `name` (string, required): The name of the label to remove
 
-Batch labels:
+#### Batch Format
 
-- `labels` (array, required): Array of shared label names to remove, each containing:
-  - `name` (string, required): The name of the label to remove
+- `labels` (array): Array of objects with name property
 
-## Task Label Tools  
+#### Example
 
-### todoist_update_task_labels
+```json
+{
+  "name": "UnwantedLabel"
+}
+```
 
-Update the labels of one or more tasks in Todoist.
+## Tips for Using Todoist Tools
 
-Single task:
+1. **Finding Objects by Name**: Most tools support finding items by name when you don't have the ID. For example, you can use `task_name` instead of `task_id`, or `project_name` instead of `project_id`.
 
-- `task_id` (string, preferred): ID of the task to update labels for
-- `task_name` (string): Name/content of the task to search for and update labels (if ID not provided)
-- `labels` (array of strings, required): Array of label names to set for the task
+2. **Batch Operations**: Use batch operations when you need to create, update, or delete multiple items at once. This is more efficient than making multiple single requests.
 
-Batch tasks:
+3. **Colors**: When specifying colors, use the color name strings like `"red"`, `"blue"`, `"green"`, etc. See the full list of available colors under the create_project tool.
 
-- `tasks` (array, required): Array of task label update operations, each containing:  
-  - `task_id` (string, preferred): ID of the task to update labels for
-  - `task_name` (string): Name/content of the task to search for and update labels (if ID not provided)
-  - `labels` (array of strings, required): Array of label names to set for the task
+4. **Due Dates**: For due dates, you can use:
+   - `due_string` for natural language like "tomorrow" or "next Monday at 3pm"
+   - `due_date` for specific dates in YYYY-MM-DD format
+   - `due_datetime` for specific date and time in RFC3339 format
+
+5. **Priority Levels**: Task priorities range from 1 (normal) to 4 (urgent).
+
+6. **Labels**: Labels can be either personal (stored in your account) or shared (only appear on tasks). The tools allow managing both types.
