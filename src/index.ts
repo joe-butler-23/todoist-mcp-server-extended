@@ -381,12 +381,7 @@ const UPDATE_TASK_TOOL: Tool = {
         type: "string",
         description: "2-letter language code for deadline parsing (optional)"
       }
-    },
-    anyOf: [
-      { required: ["tasks"] },
-      { required: ["task_id"] },
-      { required: ["task_name"] }
-    ]
+    }
   }
 };
 
@@ -426,12 +421,7 @@ const DELETE_TASK_TOOL: Tool = {
         type: "string",
         description: "Name/content of the task to search for and delete (if ID not provided)"
       }
-    },
-    anyOf: [
-      { required: ["tasks"] },
-      { required: ["task_id"] },
-      { required: ["task_name"] }
-    ]
+    }
   }
 };
 
@@ -471,12 +461,7 @@ const COMPLETE_TASK_TOOL: Tool = {
         type: "string",
         description: "Name/content of the task to search for and complete (if ID not provided)"
       }
-    },
-    anyOf: [
-      { required: ["tasks"] },
-      { required: ["task_id"] },
-      { required: ["task_name"] }
-    ]
+    }
   }
 };
 
@@ -581,11 +566,7 @@ const CREATE_PROJECT_TOOL: Tool = {
         description: "View style of the project (optional)",
         enum: ["list", "board"]
       }
-    },
-    anyOf: [
-      { required: ["projects"] },
-      { required: ["name"] }
-    ]
+    }
   }
 };
 
@@ -661,11 +642,7 @@ const UPDATE_PROJECT_TOOL: Tool = {
         description: "View style of the project (optional)",
         enum: ["list", "board"]
       }
-    },
-    anyOf: [
-      { required: ["projects"] },
-      { required: ["project_id"] }
-    ]
+    }
   }
 };
 
@@ -710,12 +687,7 @@ const GET_PROJECT_SECTIONS_TOOL: Tool = {
         description: "Whether to include sections with no tasks",
         default: true
       }
-    },
-    anyOf: [
-      { required: ["projects"] },
-      { required: ["project_id"] },
-      { required: ["project_name"] }
-    ]
+    }
   }
 };
 
@@ -768,11 +740,7 @@ const CREATE_PROJECT_SECTION_TOOL: Tool = {
         type: "number",
         description: "Order of the section (optional)"
       }
-    },
-    anyOf: [
-      { required: ["sections"] },
-      { required: ["project_id", "name"] }
-    ]
+    }
   }
 };
 
@@ -842,11 +810,7 @@ const CREATE_PERSONAL_LABEL_TOOL: Tool = {
         type: "boolean",
         description: "Whether the label is a favorite (optional)"
       }
-    },
-    anyOf: [
-      { required: ["labels"] },
-      { required: ["name"] }
-    ]
+    }
   }
 };
 
@@ -939,11 +903,7 @@ const UPDATE_PERSONAL_LABEL_TOOL: Tool = {
         type: "boolean",
         description: "Whether the label is a favorite (optional)"
       }
-    },
-    anyOf: [
-      { required: ["labels"] },
-      { anyOf: [{ required: ["label_id"] }, { required: ["label_name"] }] }
-    ]
+    }
   }
 };
 
@@ -1011,11 +971,7 @@ const RENAME_SHARED_LABELS_TOOL: Tool = {
         type: "string",
         description: "The new name for the label"
       }
-    },
-    anyOf: [
-      { required: ["labels"] },
-      { required: ["name", "new_name"] }
-    ]
+    }
   }
 };
 
@@ -1044,11 +1000,7 @@ const REMOVE_SHARED_LABELS_TOOL: Tool = {
         type: "string",
         description: "The name of the label to remove"
       }
-    },
-    anyOf: [
-      { required: ["labels"] },
-      { required: ["name"] }
-    ]
+    }
   }
 };
 
@@ -1101,11 +1053,7 @@ const UPDATE_TASK_LABELS_TOOL: Tool = {
         items: { type: "string" },
         description: "Array of label names to set for the task"
       }
-    },
-    anyOf: [
-      { required: ["tasks"] },
-      { required: ["labels"], anyOf: [{ required: ["task_id"] }, { required: ["task_name"] }] }
-    ]
+    }
   }
 };
 
@@ -2285,7 +2233,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               type: "text",
               text: JSON.stringify({
                 success: true,
-                message: `Successfully deleted task${taskContent ? ': "' + taskContent + '"' : ' with ID: ' + taskId}`
+                message: `Successfully deleted task${taskContent ? ': \"' + taskContent + '\"' : ' with ID: ' + taskId}`
               }, null, 2)
             }],
             isError: false
@@ -2423,7 +2371,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               type: "text",
               text: JSON.stringify({
                 success: true,
-                message: `Successfully completed task${taskContent ? ': "' + taskContent + '"' : ' with ID: ' + taskId}`
+                message: `Successfully completed task${taskContent ? ': \"' + taskContent + '\"' : ' with ID: ' + taskId}`
               }, null, 2)
             }],
             isError: false
@@ -3478,7 +3426,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               type: "text",
               text: JSON.stringify({
                 success: true,
-                message: `Successfully renamed shared label "${args.name}" to "${args.new_name}"`
+                message: `Successfully renamed shared label \"${args.name}\" to \"${args.new_name}\"`
               }, null, 2)
             }],
             isError: false
@@ -3555,7 +3503,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               type: "text",
               text: JSON.stringify({
                 success: true,
-                message: `Successfully removed all instances of shared label "${args.name}"`
+                message: `Successfully removed all instances of shared label \"${args.name}\"`
               }, null, 2)
             }],
             isError: false
@@ -3751,3 +3699,4 @@ runServer().catch((error) => {
   console.error("Fatal error running server:", error);
   process.exit(1);
 });
+
